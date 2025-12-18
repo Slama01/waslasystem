@@ -43,7 +43,7 @@ export const Sidebar = ({ currentPage, onPageChange, currentUser, onLogout }: Si
             <Wifi className="w-7 h-7 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">شبكة بلس</h1>
+            <h1 className="text-xl font-bold">وصلة</h1>
             <p className="text-xs text-sidebar-foreground/60">إدارة الشبكات</p>
           </div>
         </div>

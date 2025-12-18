@@ -6,7 +6,9 @@ import {
   UserCog, 
   Settings, 
   LogOut,
-  Wifi
+  Wifi,
+  FileText,
+  Activity
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Staff } from '@/types/network';
@@ -23,6 +25,8 @@ const menuItems = [
   { id: 'subscribers', label: 'المشتركين', icon: Users, roles: ['admin', 'subs'] },
   { id: 'routers', label: 'الراوترات', icon: Router, roles: ['admin', 'routers'] },
   { id: 'sales', label: 'المبيعات', icon: DollarSign, roles: ['admin', 'sales'] },
+  { id: 'reports', label: 'التقارير', icon: FileText, roles: ['admin'] },
+  { id: 'activityLog', label: 'سجل النشاط', icon: Activity, roles: ['admin'] },
   { id: 'staff', label: 'الموظفين', icon: UserCog, roles: ['admin'] },
   { id: 'settings', label: 'الإعدادات', icon: Settings, roles: ['admin'] },
 ];

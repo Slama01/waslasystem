@@ -1,22 +1,27 @@
-import { Users, Router, DollarSign, AlertTriangle, CheckCircle, XCircle, TrendingUp } from 'lucide-react';
+import { Users, Router, DollarSign, AlertTriangle, CheckCircle, XCircle, TrendingUp, Gauge, Clock, Wallet, CalendarPlus, CalendarX, Ban } from 'lucide-react';
 import { StatCard } from './StatCard';
-import { DashboardStats, Subscriber, Sale } from '@/types/network';
+import { DashboardStats, Subscriber, Sale, Payment } from '@/types/network';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { cn } from '@/lib/utils';
 
 interface DashboardProps {
   stats: DashboardStats;
   subscribers: Subscriber[];
   sales: Sale[];
+  payments: Payment[];
+  alerts: Subscriber[];
 }
 
-const COLORS = ['hsl(142, 71%, 45%)', 'hsl(38, 92%, 50%)', 'hsl(0, 84%, 60%)'];
+const COLORS = ['hsl(142, 71%, 45%)', 'hsl(38, 92%, 50%)', 'hsl(0, 84%, 60%)', 'hsl(210, 15%, 45%)', 'hsl(270, 60%, 50%)'];
 
-export const Dashboard = ({ stats, subscribers, sales }: DashboardProps) => {
+export const Dashboard = ({ stats, subscribers, sales, payments, alerts }: DashboardProps) => {
   const statusData = [
-    { name: 'نشط', value: stats.activeSubscribers, color: COLORS[0] },
-    { name: 'قارب على الانتهاء', value: stats.expiringSubscribers, color: COLORS[1] },
+    { name: 'فعّال', value: stats.activeSubscribers, color: COLORS[0] },
+    { name: 'قرب الانتهاء', value: stats.expiringSubscribers, color: COLORS[1] },
     { name: 'منتهي', value: stats.expiredSubscribers, color: COLORS[2] },
-  ];
+    { name: 'موقوف', value: stats.stoppedSubscribers, color: COLORS[3] },
+    { name: 'مديون', value: stats.indebtedSubscribers, color: COLORS[4] },
+  ].filter(item => item.value > 0);
 
   const speedData = subscribers.reduce((acc, sub) => {
     const speed = `${sub.speed} Mbps`;
@@ -27,30 +32,98 @@ export const Dashboard = ({ stats, subscribers, sales }: DashboardProps) => {
       acc.push({ name: speed, count: 1 });
     }
     return acc;
-  }, [] as { name: string; count: number }[]);
+  }, [] as { name: string; count: number }[]).sort((a, b) => parseInt(a.name) - parseInt(b.name));
 
-  const salesByDate = sales.reduce((acc, sale) => {
-    const existing = acc.find(item => item.date === sale.date);
-    if (existing) {
-      existing.amount += sale.price;
-    } else {
-      acc.push({ date: sale.date, amount: sale.price });
-    }
-    return acc;
-  }, [] as { date: string; amount: number }[]).slice(-7);
+  // Calculate daily revenue for last 7 days
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - i));
+    return date.toISOString().split('T')[0];
+  });
 
-  const expiringSubscribers = subscribers.filter(s => s.status === 'expiring');
+  const revenueByDate = last7Days.map(date => {
+    const dayPayments = payments.filter(p => p.date === date).reduce((acc, p) => acc + p.amount, 0);
+    const daySales = sales.filter(s => s.date === date).reduce((acc, s) => acc + s.price, 0);
+    return {
+      date: date.slice(5), // MM-DD format
+      amount: dayPayments + daySales
+    };
+  });
+
+  const getAlertIcon = (sub: Subscriber) => {
+    if (sub.daysLeft === undefined) return '⚠️';
+    if (sub.daysLeft < 0) return '🔴';
+    if (sub.daysLeft === 0) return '⚠️';
+    if (sub.daysLeft === 1) return '⚠️';
+    if (sub.daysLeft <= 3) return '🟠';
+    return '🟡';
+  };
+
+  const getAlertMessage = (sub: Subscriber) => {
+    if (sub.status === 'indebted') return `مديون ${sub.balance} شيكل`;
+    if (sub.daysLeft === undefined) return '';
+    if (sub.daysLeft < 0) return `منتهي منذ ${Math.abs(sub.daysLeft)} يوم`;
+    if (sub.daysLeft === 0) return 'ينتهي اليوم!';
+    if (sub.daysLeft === 1) return 'باقي يوم واحد';
+    return `باقي ${sub.daysLeft} أيام`;
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Stats Grid */}
+      {/* Main Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="إجمالي المشتركين"
           value={stats.totalSubscribers}
           icon={Users}
           color="primary"
-          subtitle={`${stats.activeSubscribers} نشط`}
+          subtitle={`${stats.activeSubscribers} فعّال`}
+        />
+        <StatCard
+          title="دخل اليوم"
+          value={`${stats.todayRevenue.toLocaleString()}`}
+          icon={Wallet}
+          color="success"
+          subtitle="شيكل"
+        />
+        <StatCard
+          title="قرب الانتهاء"
+          value={stats.expiringSubscribers}
+          icon={Clock}
+          color="warning"
+          subtitle="مشترك"
+        />
+        <StatCard
+          title="متوسط السرعة"
+          value={`${stats.averageSpeed}`}
+          icon={Gauge}
+          color="accent"
+          subtitle="Mbps"
+        />
+      </div>
+
+      {/* Secondary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="دخل الشهر"
+          value={`${stats.monthlyRevenue.toLocaleString()}`}
+          icon={TrendingUp}
+          color="success"
+          subtitle="شيكل"
+        />
+        <StatCard
+          title="اشتراكات جديدة"
+          value={stats.newSubscribersThisMonth}
+          icon={CalendarPlus}
+          color="primary"
+          subtitle="هذا الشهر"
+        />
+        <StatCard
+          title="منتهية هذا الشهر"
+          value={stats.expiredThisMonth}
+          icon={CalendarX}
+          color="destructive"
+          subtitle="اشتراك"
         />
         <StatCard
           title="الراوترات"
@@ -59,36 +132,37 @@ export const Dashboard = ({ stats, subscribers, sales }: DashboardProps) => {
           color="accent"
           subtitle={`${stats.onlineRouters} متصل`}
         />
-        <StatCard
-          title="إجمالي المبيعات"
-          value={stats.totalSales}
-          icon={DollarSign}
-          color="success"
-          subtitle="كرت مباع"
-        />
-        <StatCard
-          title="الإيرادات"
-          value={`${stats.totalRevenue.toLocaleString()}`}
-          icon={TrendingUp}
-          color="warning"
-          subtitle="شيكل"
-        />
       </div>
 
-      {/* Alerts */}
-      {expiringSubscribers.length > 0 && (
-        <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 animate-slide-up">
-          <div className="flex items-center gap-3 mb-3">
+      {/* Smart Alerts */}
+      {alerts.length > 0 && (
+        <div className="bg-gradient-to-r from-warning/10 to-destructive/10 border border-warning/30 rounded-xl p-5 animate-slide-up">
+          <div className="flex items-center gap-3 mb-4">
             <AlertTriangle className="w-6 h-6 text-warning" />
-            <h3 className="font-bold text-warning">تنبيه: اشتراكات قاربت على الانتهاء</h3>
+            <h3 className="font-bold text-lg">تنبيهات ذكية ({alerts.length})</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {expiringSubscribers.map(sub => (
-              <div key={sub.id} className="bg-card rounded-lg p-3 flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-warning animate-pulse" />
-                <div>
-                  <p className="font-medium">{sub.name}</p>
-                  <p className="text-xs text-muted-foreground">ينتهي: {sub.expireDate}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto">
+            {alerts.map(sub => (
+              <div 
+                key={sub.id} 
+                className={cn(
+                  "bg-card rounded-lg p-3 flex items-center gap-3 border",
+                  sub.status === 'expired' && "border-destructive/30",
+                  sub.status === 'expiring' && "border-warning/30",
+                  sub.status === 'indebted' && "border-purple-500/30"
+                )}
+              >
+                <span className="text-xl">{getAlertIcon(sub)}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{sub.name}</p>
+                  <p className={cn(
+                    "text-xs font-bold",
+                    sub.status === 'expired' && "text-destructive",
+                    sub.status === 'expiring' && "text-warning",
+                    sub.status === 'indebted' && "text-purple-500"
+                  )}>
+                    {getAlertMessage(sub)}
+                  </p>
                 </div>
               </div>
             ))}
@@ -121,7 +195,7 @@ export const Dashboard = ({ stats, subscribers, sales }: DashboardProps) => {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div className="flex justify-center gap-6 mt-4">
+          <div className="flex flex-wrap justify-center gap-4 mt-4">
             {statusData.map((item, index) => (
               <div key={index} className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
@@ -147,12 +221,12 @@ export const Dashboard = ({ stats, subscribers, sales }: DashboardProps) => {
           </div>
         </div>
 
-        {/* Sales Trend */}
+        {/* Revenue Trend */}
         <div className="bg-card rounded-2xl p-6 shadow-lg border border-border/50 lg:col-span-2">
-          <h3 className="text-lg font-bold mb-4">مبيعات آخر 7 أيام</h3>
+          <h3 className="text-lg font-bold mb-4">الدخل - آخر 7 أيام</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={salesByDate}>
+              <LineChart data={revenueByDate}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
                 <XAxis dataKey="date" fontSize={12} />
                 <YAxis fontSize={12} />
@@ -160,9 +234,9 @@ export const Dashboard = ({ stats, subscribers, sales }: DashboardProps) => {
                 <Line 
                   type="monotone" 
                   dataKey="amount" 
-                  stroke="hsl(172, 66%, 50%)" 
+                  stroke="hsl(142, 71%, 45%)" 
                   strokeWidth={3}
-                  dot={{ fill: 'hsl(172, 66%, 50%)', strokeWidth: 2 }}
+                  dot={{ fill: 'hsl(142, 71%, 45%)', strokeWidth: 2 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -170,35 +244,55 @@ export const Dashboard = ({ stats, subscribers, sales }: DashboardProps) => {
         </div>
       </div>
 
-      {/* Quick Status */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-card rounded-2xl p-6 shadow-lg border border-border/50 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center">
-            <CheckCircle className="w-6 h-6 text-success" />
+      {/* Quick Status Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="bg-card rounded-2xl p-4 shadow-lg border border-border/50 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-success/20 flex items-center justify-center">
+            <CheckCircle className="w-5 h-5 text-success" />
           </div>
           <div>
-            <p className="text-3xl font-bold text-success">{stats.activeSubscribers}</p>
-            <p className="text-sm text-muted-foreground">مشترك نشط</p>
+            <p className="text-2xl font-bold text-success">{stats.activeSubscribers}</p>
+            <p className="text-xs text-muted-foreground">فعّال</p>
           </div>
         </div>
         
-        <div className="bg-card rounded-2xl p-6 shadow-lg border border-border/50 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-warning/20 flex items-center justify-center">
-            <AlertTriangle className="w-6 h-6 text-warning" />
+        <div className="bg-card rounded-2xl p-4 shadow-lg border border-border/50 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-warning/20 flex items-center justify-center">
+            <Clock className="w-5 h-5 text-warning" />
           </div>
           <div>
-            <p className="text-3xl font-bold text-warning">{stats.expiringSubscribers}</p>
-            <p className="text-sm text-muted-foreground">قارب على الانتهاء</p>
+            <p className="text-2xl font-bold text-warning">{stats.expiringSubscribers}</p>
+            <p className="text-xs text-muted-foreground">قرب الانتهاء</p>
           </div>
         </div>
         
-        <div className="bg-card rounded-2xl p-6 shadow-lg border border-border/50 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-destructive/20 flex items-center justify-center">
-            <XCircle className="w-6 h-6 text-destructive" />
+        <div className="bg-card rounded-2xl p-4 shadow-lg border border-border/50 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center">
+            <XCircle className="w-5 h-5 text-destructive" />
           </div>
           <div>
-            <p className="text-3xl font-bold text-destructive">{stats.expiredSubscribers}</p>
-            <p className="text-sm text-muted-foreground">منتهي</p>
+            <p className="text-2xl font-bold text-destructive">{stats.expiredSubscribers}</p>
+            <p className="text-xs text-muted-foreground">منتهي</p>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-2xl p-4 shadow-lg border border-border/50 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+            <Ban className="w-5 h-5 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{stats.stoppedSubscribers}</p>
+            <p className="text-xs text-muted-foreground">موقوف</p>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-2xl p-4 shadow-lg border border-border/50 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+            <DollarSign className="w-5 h-5 text-purple-500" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-purple-500">{stats.indebtedSubscribers}</p>
+            <p className="text-xs text-muted-foreground">مديون</p>
           </div>
         </div>
       </div>

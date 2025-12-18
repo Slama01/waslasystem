@@ -4,15 +4,14 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Lock, Save, Shield } from 'lucide-react';
 import { toast } from 'sonner';
-
 interface SettingsPageProps {
   onChangePassword: (newPassword: string) => void;
 }
-
-export const SettingsPage = ({ onChangePassword }: SettingsPageProps) => {
+export const SettingsPage = ({
+  onChangePassword
+}: SettingsPageProps) => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPassword) {
@@ -32,9 +31,7 @@ export const SettingsPage = ({ onChangePassword }: SettingsPageProps) => {
     setConfirmPassword('');
     toast.success('تم تغيير كلمة المرور بنجاح');
   };
-
-  return (
-    <div className="space-y-6 animate-fade-in max-w-2xl">
+  return <div className="space-y-6 animate-fade-in max-w-2xl">
       {/* Password Change */}
       <Card className="shadow-lg border-border/50">
         <CardHeader>
@@ -47,21 +44,11 @@ export const SettingsPage = ({ onChangePassword }: SettingsPageProps) => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-sm text-muted-foreground mb-2 block">كلمة المرور الجديدة</label>
-              <Input
-                type="password"
-                placeholder="أدخل كلمة المرور الجديدة"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
+              <Input type="password" placeholder="أدخل كلمة المرور الجديدة" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
             </div>
             <div>
               <label className="text-sm text-muted-foreground mb-2 block">تأكيد كلمة المرور</label>
-              <Input
-                type="password"
-                placeholder="أعد إدخال كلمة المرور"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
+              <Input type="password" placeholder="أعد إدخال كلمة المرور" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
             </div>
             <Button type="submit" className="gradient-primary hover:opacity-90">
               <Save className="w-4 h-4 ml-2" />
@@ -81,12 +68,11 @@ export const SettingsPage = ({ onChangePassword }: SettingsPageProps) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3 text-muted-foreground">
-            <p><strong>شبكة بلس</strong> - النسخة الاحترافية</p>
+            <p className="bg-primary-foreground"><strong>شبكة بلس</strong>​وصلة</p>
             <p>نظام متكامل لإدارة شبكات الإنترنت والاشتراكات</p>
             <p className="text-sm">الإصدار 2.0</p>
           </div>
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>;
 };

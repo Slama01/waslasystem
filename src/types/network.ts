@@ -1,3 +1,5 @@
+export type SubscriberStatus = 'active' | 'expiring' | 'expired' | 'stopped' | 'indebted';
+
 export interface Subscriber {
   id: string;
   name: string;
@@ -7,8 +9,31 @@ export interface Subscriber {
   expireDate: string;
   type: 'monthly' | 'user';
   speed: number;
-  status: 'active' | 'expiring' | 'expired';
+  status: SubscriberStatus;
   notes?: string;
+  daysLeft?: number;
+  balance?: number; // positive = owes money, negative = credit
+}
+
+export interface Payment {
+  id: string;
+  subscriberId: string;
+  subscriberName: string;
+  amount: number;
+  date: string;
+  staffName: string;
+  type: 'subscription' | 'extension' | 'other';
+  notes?: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  action: 'add' | 'extend' | 'delete' | 'edit' | 'payment';
+  entityType: 'subscriber' | 'router' | 'sale' | 'staff';
+  entityName: string;
+  staffName: string;
+  timestamp: string;
+  details?: string;
 }
 
 export interface Router {
@@ -41,8 +66,23 @@ export interface DashboardStats {
   activeSubscribers: number;
   expiringSubscribers: number;
   expiredSubscribers: number;
+  stoppedSubscribers: number;
+  indebtedSubscribers: number;
   totalRouters: number;
   onlineRouters: number;
   totalSales: number;
   totalRevenue: number;
+  todayRevenue: number;
+  monthlyRevenue: number;
+  newSubscribersThisMonth: number;
+  expiredThisMonth: number;
+  averageSpeed: number;
+}
+
+export interface MonthlyReport {
+  month: string;
+  totalIncome: number;
+  newSubscriptions: number;
+  expiredSubscriptions: number;
+  activeAtEnd: number;
 }

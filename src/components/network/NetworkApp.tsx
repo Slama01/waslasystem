@@ -9,6 +9,8 @@ import { RoutersPage } from './RoutersPage';
 import { SalesPage } from './SalesPage';
 import { StaffPage } from './StaffPage';
 import { SettingsPage } from './SettingsPage';
+import { ReportsPage } from './ReportsPage';
+import { ActivityLogPage } from './ActivityLogPage';
 
 const pageTitles: Record<string, string> = {
   dashboard: 'لوحة التحكم',
@@ -17,6 +19,8 @@ const pageTitles: Record<string, string> = {
   sales: 'إدارة المبيعات',
   staff: 'إدارة الموظفين',
   settings: 'الإعدادات',
+  reports: 'التقارير الشهرية',
+  activityLog: 'سجل النشاط',
 };
 
 export const NetworkApp = () => {
@@ -26,19 +30,24 @@ export const NetworkApp = () => {
     routers,
     sales,
     staff,
+    payments,
+    activityLog,
     stats,
     currentUser,
     addSubscriber,
     deleteSubscriber,
+    extendSubscription,
     addRouter,
     deleteRouter,
     addSale,
     deleteSale,
     addStaff,
     deleteStaff,
+    getSubscriberPayments,
     login,
     logout,
     changePassword,
+    getAlerts,
   } = useNetworkData();
 
   if (!currentUser) {
@@ -48,9 +57,18 @@ export const NetworkApp = () => {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
-        return <Dashboard stats={stats} subscribers={subscribers} sales={sales} />;
+        return <Dashboard stats={stats} subscribers={subscribers} sales={sales} payments={payments} alerts={getAlerts()} />;
       case 'subscribers':
-        return <SubscribersPage subscribers={subscribers} onAdd={addSubscriber} onDelete={deleteSubscriber} />;
+        return (
+          <SubscribersPage 
+            subscribers={subscribers} 
+            staff={staff}
+            onAdd={addSubscriber} 
+            onDelete={deleteSubscriber}
+            onExtend={extendSubscription}
+            getSubscriberPayments={getSubscriberPayments}
+          />
+        );
       case 'routers':
         return <RoutersPage routers={routers} onAdd={addRouter} onDelete={deleteRouter} />;
       case 'sales':
@@ -59,8 +77,12 @@ export const NetworkApp = () => {
         return <StaffPage staff={staff} onAdd={addStaff} onDelete={deleteStaff} />;
       case 'settings':
         return <SettingsPage onChangePassword={changePassword} />;
+      case 'reports':
+        return <ReportsPage subscribers={subscribers} payments={payments} sales={sales} stats={stats} />;
+      case 'activityLog':
+        return <ActivityLogPage activityLog={activityLog} />;
       default:
-        return <Dashboard stats={stats} subscribers={subscribers} sales={sales} />;
+        return <Dashboard stats={stats} subscribers={subscribers} sales={sales} payments={payments} alerts={getAlerts()} />;
     }
   };
 

@@ -1,7 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { DashboardStats, Subscriber, Payment, Sale } from '@/types/network';
-import { FileText, TrendingUp, Users, Calendar, DollarSign } from 'lucide-react';
+import { FileText, TrendingUp, Users, Calendar, DollarSign, Printer, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useRef } from 'react';
 
 interface ReportsPageProps {
   subscribers: Subscriber[];
@@ -11,6 +13,7 @@ interface ReportsPageProps {
 }
 
 export const ReportsPage = ({ subscribers, payments, sales, stats }: ReportsPageProps) => {
+  const reportRef = useRef<HTMLDivElement>(null);
   const currentMonth = new Date().toISOString().slice(0, 7);
   const currentMonthName = new Date().toLocaleDateString('ar-EG', { month: 'long', year: 'numeric' });
 
@@ -51,15 +54,200 @@ export const ReportsPage = ({ subscribers, payments, sales, stats }: ReportsPage
     return acc;
   }, {} as Record<number, number>);
 
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleExportPDF = () => {
+    // Create a printable version and trigger print dialog with PDF option
+    const printContent = reportRef.current;
+    if (!printContent) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+        <head>
+          <meta charset="UTF-8">
+          <title>تقرير وصلة - ${currentMonthName}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; 
+              direction: rtl; 
+              padding: 40px;
+              background: white;
+              color: #1a1a1a;
+            }
+            .header { 
+              text-align: center; 
+              margin-bottom: 30px; 
+              padding-bottom: 20px;
+              border-bottom: 3px solid #0ea5e9;
+            }
+            .header h1 { 
+              font-size: 28px; 
+              color: #0ea5e9;
+              margin-bottom: 8px;
+            }
+            .header p { color: #666; }
+            .stats-grid { 
+              display: grid; 
+              grid-template-columns: repeat(4, 1fr); 
+              gap: 20px; 
+              margin-bottom: 30px; 
+            }
+            .stat-card { 
+              padding: 20px; 
+              border-radius: 12px; 
+              text-align: center;
+              border: 1px solid #e5e7eb;
+            }
+            .stat-card.income { background: #f0fdf4; border-color: #22c55e; }
+            .stat-card.new { background: #eff6ff; border-color: #3b82f6; }
+            .stat-card.expired { background: #fef2f2; border-color: #ef4444; }
+            .stat-card.active { background: #f0fdfa; border-color: #14b8a6; }
+            .stat-value { font-size: 32px; font-weight: bold; }
+            .stat-label { font-size: 14px; color: #666; margin-top: 4px; }
+            .section { margin-bottom: 30px; }
+            .section-title { 
+              font-size: 18px; 
+              font-weight: bold; 
+              margin-bottom: 15px;
+              color: #333;
+            }
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+              margin-top: 10px;
+            }
+            th, td { 
+              padding: 12px; 
+              text-align: right; 
+              border-bottom: 1px solid #e5e7eb;
+            }
+            th { 
+              background: #f9fafb; 
+              font-weight: 600;
+              color: #374151;
+            }
+            .total-row { 
+              background: #f0fdf4; 
+              font-weight: bold;
+            }
+            .footer { 
+              text-align: center; 
+              margin-top: 40px; 
+              padding-top: 20px;
+              border-top: 1px solid #e5e7eb;
+              color: #666;
+              font-size: 12px;
+            }
+            @media print {
+              body { padding: 20px; }
+              .stat-card { break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>وصلة - إدارة الشبكات</h1>
+            <p>تقرير شهر ${currentMonthName}</p>
+          </div>
+          
+          <div class="stats-grid">
+            <div class="stat-card income">
+              <div class="stat-value" style="color: #22c55e;">${totalMonthlyIncome.toLocaleString()}</div>
+              <div class="stat-label">إجمالي الدخل (شيكل)</div>
+            </div>
+            <div class="stat-card new">
+              <div class="stat-value" style="color: #3b82f6;">${newSubscribersThisMonth}</div>
+              <div class="stat-label">اشتراكات جديدة</div>
+            </div>
+            <div class="stat-card expired">
+              <div class="stat-value" style="color: #ef4444;">${expiredThisMonth}</div>
+              <div class="stat-label">منتهية</div>
+            </div>
+            <div class="stat-card active">
+              <div class="stat-value" style="color: #14b8a6;">${stats.activeSubscribers}</div>
+              <div class="stat-label">المشتركين الفعالين</div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">ملخص العمليات المالية</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>النوع</th>
+                  <th>العدد</th>
+                  <th>المبلغ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>تمديدات</td>
+                  <td>${monthlyPayments.filter(p => p.type === 'extension').length}</td>
+                  <td>${monthlyPayments.filter(p => p.type === 'extension').reduce((acc, p) => acc + p.amount, 0).toLocaleString()} شيكل</td>
+                </tr>
+                <tr>
+                  <td>اشتراكات جديدة</td>
+                  <td>${monthlyPayments.filter(p => p.type === 'subscription').length}</td>
+                  <td>${monthlyPayments.filter(p => p.type === 'subscription').reduce((acc, p) => acc + p.amount, 0).toLocaleString()} شيكل</td>
+                </tr>
+                <tr>
+                  <td>مبيعات كروت</td>
+                  <td>${monthlySales.reduce((acc, s) => acc + s.count, 0)} كرت</td>
+                  <td>${monthlySales.reduce((acc, s) => acc + s.price, 0).toLocaleString()} شيكل</td>
+                </tr>
+                <tr class="total-row">
+                  <td>الإجمالي</td>
+                  <td>-</td>
+                  <td>${totalMonthlyIncome.toLocaleString()} شيكل</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="footer">
+            <p>تم إنشاء هذا التقرير بواسطة نظام وصلة لإدارة الشبكات</p>
+            <p>التاريخ: ${new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in" ref={reportRef}>
       {/* Month Header */}
       <div className="bg-gradient-to-r from-primary/10 to-accent/10 rounded-2xl p-6 border border-primary/20">
-        <div className="flex items-center gap-3 mb-2">
-          <FileText className="w-8 h-8 text-primary" />
-          <h2 className="text-2xl font-bold">تقرير شهر {currentMonthName}</h2>
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-3">
+            <FileText className="w-8 h-8 text-primary" />
+            <div>
+              <h2 className="text-2xl font-bold">تقرير شهر {currentMonthName}</h2>
+              <p className="text-muted-foreground">ملخص الأداء والإحصائيات للشهر الحالي</p>
+            </div>
+          </div>
+          <div className="flex gap-3 no-print">
+            <Button onClick={handlePrint} variant="outline" className="gap-2">
+              <Printer className="w-4 h-4" />
+              طباعة
+            </Button>
+            <Button onClick={handleExportPDF} className="gap-2">
+              <Download className="w-4 h-4" />
+              تصدير PDF
+            </Button>
+          </div>
         </div>
-        <p className="text-muted-foreground">ملخص الأداء والإحصائيات للشهر الحالي</p>
       </div>
 
       {/* Monthly Stats Cards */}

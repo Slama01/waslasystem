@@ -41,7 +41,9 @@ export const LoginPage = ({
           <CardTitle className="text-3xl font-bold bg-gradient-to-l from-primary to-accent bg-clip-text text-transparent">
             وصلة
           </CardTitle>
-          <p className="text-muted-foreground">نظام إدارة شبكات الإنترنت</p>
+          <p className="text-muted-foreground">نظام إدارة شبكات الإنترنت
+"admin"
+123456</p>
         </CardHeader>
         
         <CardContent>

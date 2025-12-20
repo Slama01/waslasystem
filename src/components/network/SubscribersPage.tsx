@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 interface SubscribersPageProps {
   subscribers: Subscriber[];
   staff: Staff[];
-  onAdd: (sub: Omit<Subscriber, 'id' | 'status' | 'daysLeft'>) => void;
+  onAdd: (sub: Omit<Subscriber, 'id' | 'status' | 'daysLeft'>, initialPayment?: number) => void;
   onDelete: (id: string) => void;
   onExtend: (id: string, days: number, amount: number) => void;
   getSubscriberPayments: (subscriberId: string) => Payment[];
@@ -41,6 +41,7 @@ export const SubscribersPage = ({
     expireDate: '',
     type: 'monthly' as 'monthly' | 'user',
     speed: 20,
+    initialPayment: 0,
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -49,8 +50,9 @@ export const SubscribersPage = ({
       toast.error('الرجاء ملء جميع الحقول');
       return;
     }
-    onAdd(formData);
-    setFormData({ name: '', phone: '', devices: 1, startDate: '', expireDate: '', type: 'monthly', speed: 20 });
+    const { initialPayment, ...subData } = formData;
+    onAdd(subData, initialPayment);
+    setFormData({ name: '', phone: '', devices: 1, startDate: '', expireDate: '', type: 'monthly', speed: 20, initialPayment: 0 });
     toast.success('تم إضافة المشترك بنجاح');
   };
 
@@ -185,6 +187,12 @@ export const SubscribersPage = ({
               placeholder="السرعة (Mbps)"
               value={formData.speed}
               onChange={(e) => setFormData({ ...formData, speed: parseInt(e.target.value) || 20 })}
+            />
+            <Input
+              type="number"
+              placeholder="المبلغ المدفوع (شيكل)"
+              value={formData.initialPayment || ''}
+              onChange={(e) => setFormData({ ...formData, initialPayment: parseInt(e.target.value) || 0 })}
             />
             <Button type="submit" className="gradient-primary hover:opacity-90">
               <Plus className="w-4 h-4 ml-2" />

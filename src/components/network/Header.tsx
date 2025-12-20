@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Wifi, WifiOff, Clock } from 'lucide-react';
+import { Wifi, WifiOff, Clock, Sun, Moon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useTheme } from '@/hooks/useTheme';
 
 interface HeaderProps {
   title: string;
@@ -8,6 +10,7 @@ interface HeaderProps {
 export const Header = ({ title }: HeaderProps) => {
   const [time, setTime] = useState(new Date());
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const { isDark, toggleTheme } = useTheme();
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -29,7 +32,22 @@ export const Header = ({ title }: HeaderProps) => {
     <header className="bg-card border-b border-border px-6 py-4 flex items-center justify-between">
       <h1 className="text-2xl font-bold text-foreground">{title}</h1>
       
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-4">
+        {/* Theme Toggle */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleTheme}
+          className="w-10 h-10 rounded-full"
+          title={isDark ? 'الوضع الفاتح' : 'الوضع الداكن'}
+        >
+          {isDark ? (
+            <Sun className="w-5 h-5 text-warning" />
+          ) : (
+            <Moon className="w-5 h-5 text-primary" />
+          )}
+        </Button>
+
         <div className="flex items-center gap-2 text-muted-foreground">
           <Clock className="w-5 h-5" />
           <span className="font-mono text-sm">{time.toLocaleTimeString('ar-EG')}</span>

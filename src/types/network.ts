@@ -58,7 +58,7 @@ export interface Staff {
   id: string;
   name: string;
   password: string;
-  role: 'admin' | 'subs' | 'sales' | 'routers';
+  role: 'admin' | 'subs' | 'sales' | 'routers' | 'subs_sales';
 }
 
 export interface DashboardStats {

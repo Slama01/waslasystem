@@ -17,6 +17,12 @@ interface RoutersPageProps {
 
 export const RoutersPage = ({ routers, onAdd, onDelete }: RoutersPageProps) => {
   const [selectedRouter, setSelectedRouter] = useState<RouterType | null>(null);
+  const [customModel, setCustomModel] = useState('');
+  const [showCustomModel, setShowCustomModel] = useState(false);
+  const [routerModels, setRouterModels] = useState<string[]>(() => {
+    const saved = localStorage.getItem('routerModels');
+    return saved ? JSON.parse(saved) : ['Mikrotik', 'TP-Link', 'D-Link', 'Ubiquiti'];
+  });
   const [formData, setFormData] = useState({
     name: '',
     model: 'Mikrotik',
@@ -25,6 +31,18 @@ export const RoutersPage = ({ routers, onAdd, onDelete }: RoutersPageProps) => {
     ip: '',
     subscribersCount: 0,
   });
+
+  const handleAddCustomModel = () => {
+    if (customModel.trim() && !routerModels.includes(customModel.trim())) {
+      const updated = [...routerModels, customModel.trim()];
+      setRouterModels(updated);
+      localStorage.setItem('routerModels', JSON.stringify(updated));
+      setFormData({ ...formData, model: customModel.trim() });
+      setCustomModel('');
+      setShowCustomModel(false);
+      toast.success('تم إضافة النوع بنجاح');
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,21 +79,47 @@ export const RoutersPage = ({ routers, onAdd, onDelete }: RoutersPageProps) => {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
-            <Select
-              value={formData.model}
-              onValueChange={(v) => setFormData({ ...formData, model: v })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="الموديل" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Mikrotik">Mikrotik</SelectItem>
-                <SelectItem value="TP-Link">TP-Link</SelectItem>
-                <SelectItem value="D-Link">D-Link</SelectItem>
-                <SelectItem value="Ubiquiti">Ubiquiti</SelectItem>
-                <SelectItem value="other">أخرى</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              {!showCustomModel ? (
+                <Select
+                  value={formData.model}
+                  onValueChange={(v) => {
+                    if (v === 'add_new') {
+                      setShowCustomModel(true);
+                    } else {
+                      setFormData({ ...formData, model: v });
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="الموديل" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {routerModels.map(model => (
+                      <SelectItem key={model} value={model}>{model}</SelectItem>
+                    ))}
+                    <SelectItem value="add_new" className="text-primary font-medium">
+                      + إضافة نوع جديد
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="اسم النوع الجديد"
+                    value={customModel}
+                    onChange={(e) => setCustomModel(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button type="button" size="sm" onClick={handleAddCustomModel} className="gradient-primary">
+                    إضافة
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setShowCustomModel(false)}>
+                    إلغاء
+                  </Button>
+                </div>
+              )}
+            </div>
             <Input
               placeholder="الموقع"
               value={formData.location}

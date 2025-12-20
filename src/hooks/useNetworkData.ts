@@ -133,7 +133,7 @@ export const useNetworkData = () => {
   };
 
   // Subscriber operations
-  const addSubscriber = useCallback((sub: Omit<Subscriber, 'id' | 'status' | 'daysLeft'>) => {
+  const addSubscriber = useCallback((sub: Omit<Subscriber, 'id' | 'status' | 'daysLeft'>, initialPayment?: number) => {
     const daysLeft = getDaysLeft(sub.expireDate);
     const newSub: Subscriber = { 
       ...sub, 
@@ -145,7 +145,24 @@ export const useNetworkData = () => {
     setSubscribers(updated);
     localStorage.setItem('subs', JSON.stringify(updated));
     logActivity('add', 'subscriber', newSub.name, `تم إضافة مشترك جديد - سرعة ${sub.speed} ميجا`);
-  }, [subscribers, logActivity]);
+
+    // Add initial payment if provided
+    if (initialPayment && initialPayment > 0) {
+      const newPayment: Payment = {
+        id: generateId(),
+        subscriberId: newSub.id,
+        subscriberName: newSub.name,
+        amount: initialPayment,
+        date: new Date().toISOString().split('T')[0],
+        staffName: currentUser?.name || 'غير معروف',
+        type: 'subscription',
+        notes: `اشتراك جديد - سرعة ${sub.speed} ميجا`
+      };
+      const updatedPayments = [...payments, newPayment];
+      setPayments(updatedPayments);
+      localStorage.setItem('payments', JSON.stringify(updatedPayments));
+    }
+  }, [subscribers, payments, currentUser, logActivity]);
 
   const updateSubscriber = useCallback((id: string, data: Partial<Subscriber>) => {
     const updated = subscribers.map(s => {

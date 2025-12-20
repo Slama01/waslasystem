@@ -21,10 +21,10 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { id: 'dashboard', label: 'لوحة التحكم', icon: LayoutDashboard, roles: ['admin', 'subs', 'sales', 'routers'] },
-  { id: 'subscribers', label: 'المشتركين', icon: Users, roles: ['admin', 'subs'] },
+  { id: 'dashboard', label: 'لوحة التحكم', icon: LayoutDashboard, roles: ['admin', 'subs', 'sales', 'routers', 'subs_sales'] },
+  { id: 'subscribers', label: 'المشتركين', icon: Users, roles: ['admin', 'subs', 'subs_sales'] },
   { id: 'routers', label: 'الراوترات', icon: Router, roles: ['admin', 'routers'] },
-  { id: 'sales', label: 'المبيعات', icon: DollarSign, roles: ['admin', 'sales'] },
+  { id: 'sales', label: 'المبيعات', icon: DollarSign, roles: ['admin', 'sales', 'subs_sales'] },
   { id: 'reports', label: 'التقارير', icon: FileText, roles: ['admin'] },
   { id: 'activityLog', label: 'سجل النشاط', icon: Activity, roles: ['admin'] },
   { id: 'staff', label: 'الموظفين', icon: UserCog, roles: ['admin'] },
@@ -62,7 +62,8 @@ export const Sidebar = ({ currentPage, onPageChange, currentUser, onLogout }: Si
             <p className="text-xs text-sidebar-foreground/60">
               {currentUser.role === 'admin' ? 'مدير' : 
                currentUser.role === 'subs' ? 'مشتركين' :
-               currentUser.role === 'sales' ? 'مبيعات' : 'راوترات'}
+               currentUser.role === 'sales' ? 'مبيعات' : 
+               currentUser.role === 'subs_sales' ? 'مشتركين ومبيعات' : 'راوترات'}
             </p>
           </div>
         </div>

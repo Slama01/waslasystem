@@ -39,9 +39,9 @@ export const LoginPage = ({
             <Wifi className="w-10 h-10 text-primary-foreground" />
           </div>
           <CardTitle className="text-3xl font-bold bg-gradient-to-l from-primary to-accent bg-clip-text text-transparent">
-            شبكة بلس
+            وصلة
           </CardTitle>
-          <p className="text-muted-foreground">النسخة الاحترافية لإدارة الشبكات</p>
+          <p className="text-muted-foreground">نظام إدارة شبكات الإنترنت</p>
         </CardHeader>
         
         <CardContent>

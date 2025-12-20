@@ -19,6 +19,7 @@ const roleLabels: Record<string, string> = {
   subs: 'مشتركين',
   sales: 'مبيعات',
   routers: 'راوترات',
+  subs_sales: 'مشتركين ومبيعات',
 };
 
 const roleIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -26,6 +27,7 @@ const roleIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   subs: Users,
   sales: ShoppingCart,
   routers: Router,
+  subs_sales: Users,
 };
 
 const roleColors: Record<string, string> = {
@@ -33,6 +35,7 @@ const roleColors: Record<string, string> = {
   subs: 'bg-accent/20 text-accent',
   sales: 'bg-success/20 text-success',
   routers: 'bg-warning/20 text-warning',
+  subs_sales: 'bg-purple-500/20 text-purple-500',
 };
 
 export const StaffPage = ({ staff, onAdd, onDelete }: StaffPageProps) => {
@@ -99,6 +102,7 @@ export const StaffPage = ({ staff, onAdd, onDelete }: StaffPageProps) => {
                 <SelectItem value="subs">مشتركين</SelectItem>
                 <SelectItem value="sales">مبيعات</SelectItem>
                 <SelectItem value="routers">راوترات</SelectItem>
+                <SelectItem value="subs_sales">مشتركين ومبيعات</SelectItem>
               </SelectContent>
             </Select>
             <Button type="submit" className="gradient-primary hover:opacity-90">

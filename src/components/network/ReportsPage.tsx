@@ -4,6 +4,7 @@ import { DashboardStats, Subscriber, Payment, Sale } from '@/types/network';
 import { FileText, TrendingUp, Users, Calendar, DollarSign, Printer, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useRef } from 'react';
+import { cn } from '@/lib/utils';
 
 interface ReportsPageProps {
   subscribers: Subscriber[];
@@ -372,10 +373,10 @@ export const ReportsPage = ({ subscribers, payments, sales, stats }: ReportsPage
         </Card>
       </div>
 
-      {/* Summary Table */}
+      {/* Detailed Summary Table */}
       <Card className="shadow-lg border-border/50">
         <CardHeader>
-          <CardTitle>ملخص العمليات المالية</CardTitle>
+          <CardTitle>ملخص العمليات المالية التفصيلي</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -388,34 +389,148 @@ export const ReportsPage = ({ subscribers, payments, sales, stats }: ReportsPage
                 </tr>
               </thead>
               <tbody>
+                {/* New Subscriptions */}
                 <tr className="border-b border-border/50 hover:bg-muted/50">
-                  <td className="py-3 px-4">تمديدات</td>
-                  <td className="py-3 px-4">{monthlyPayments.filter(p => p.type === 'extension').length}</td>
-                  <td className="py-3 px-4 font-medium text-success">
-                    {monthlyPayments.filter(p => p.type === 'extension').reduce((acc, p) => acc + p.amount, 0).toLocaleString()} شيكل
+                  <td className="py-3 px-4 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-primary"></span>
+                    اشتراكات جديدة
                   </td>
-                </tr>
-                <tr className="border-b border-border/50 hover:bg-muted/50">
-                  <td className="py-3 px-4">اشتراكات جديدة</td>
                   <td className="py-3 px-4">{monthlyPayments.filter(p => p.type === 'subscription').length}</td>
-                  <td className="py-3 px-4 font-medium text-success">
+                  <td className="py-3 px-4 font-medium text-primary">
                     {monthlyPayments.filter(p => p.type === 'subscription').reduce((acc, p) => acc + p.amount, 0).toLocaleString()} شيكل
                   </td>
                 </tr>
+                {/* Extensions */}
                 <tr className="border-b border-border/50 hover:bg-muted/50">
-                  <td className="py-3 px-4">مبيعات كروت</td>
-                  <td className="py-3 px-4">{monthlySales.reduce((acc, s) => acc + s.count, 0)} كرت</td>
-                  <td className="py-3 px-4 font-medium text-success">
-                    {monthlySales.reduce((acc, s) => acc + s.price, 0).toLocaleString()} شيكل
+                  <td className="py-3 px-4 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-accent"></span>
+                    تمديدات اشتراكات
+                  </td>
+                  <td className="py-3 px-4">{monthlyPayments.filter(p => p.type === 'extension').length}</td>
+                  <td className="py-3 px-4 font-medium text-accent">
+                    {monthlyPayments.filter(p => p.type === 'extension').reduce((acc, p) => acc + p.amount, 0).toLocaleString()} شيكل
                   </td>
                 </tr>
+                {/* Other Payments */}
+                <tr className="border-b border-border/50 hover:bg-muted/50">
+                  <td className="py-3 px-4 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-warning"></span>
+                    دفعات أخرى
+                  </td>
+                  <td className="py-3 px-4">{monthlyPayments.filter(p => p.type === 'other').length}</td>
+                  <td className="py-3 px-4 font-medium text-warning">
+                    {monthlyPayments.filter(p => p.type === 'other').reduce((acc, p) => acc + p.amount, 0).toLocaleString()} شيكل
+                  </td>
+                </tr>
+                {/* Wholesale Card Sales */}
+                <tr className="border-b border-border/50 hover:bg-muted/50">
+                  <td className="py-3 px-4 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-purple-500"></span>
+                    بيع كروت - جملة
+                  </td>
+                  <td className="py-3 px-4">{monthlySales.filter(s => s.type === 'wholesale').reduce((acc, s) => acc + s.count, 0)} كرت</td>
+                  <td className="py-3 px-4 font-medium text-purple-500">
+                    {monthlySales.filter(s => s.type === 'wholesale').reduce((acc, s) => acc + s.price, 0).toLocaleString()} شيكل
+                  </td>
+                </tr>
+                {/* Retail Card Sales */}
+                <tr className="border-b border-border/50 hover:bg-muted/50">
+                  <td className="py-3 px-4 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-success"></span>
+                    بيع كروت - مفرق
+                  </td>
+                  <td className="py-3 px-4">{monthlySales.filter(s => s.type === 'retail').reduce((acc, s) => acc + s.count, 0)} كرت</td>
+                  <td className="py-3 px-4 font-medium text-success">
+                    {monthlySales.filter(s => s.type === 'retail').reduce((acc, s) => acc + s.price, 0).toLocaleString()} شيكل
+                  </td>
+                </tr>
+                {/* Total */}
                 <tr className="bg-muted/30 font-bold">
-                  <td className="py-3 px-4">الإجمالي</td>
+                  <td className="py-3 px-4">الإجمالي الكلي</td>
                   <td className="py-3 px-4">-</td>
                   <td className="py-3 px-4 text-success">{totalMonthlyIncome.toLocaleString()} شيكل</td>
                 </tr>
               </tbody>
             </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Detailed Transactions List */}
+      <Card className="shadow-lg border-border/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-primary" />
+            سجل العمليات المالية لهذا الشهر
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="max-h-96 overflow-y-auto">
+            {[...monthlyPayments, ...monthlySales.map(s => ({
+              id: s.id,
+              date: s.date,
+              type: s.type === 'wholesale' ? 'بيع جملة' : 'بيع مفرق',
+              name: `${s.count} كرت`,
+              amount: s.price,
+              isSale: true
+            }))].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((item, index) => {
+              const isPayment = 'subscriberName' in item;
+              return (
+                <div 
+                  key={item.id} 
+                  className="flex items-center justify-between p-4 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors"
+                  style={{ animationDelay: `${index * 30}ms` }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center",
+                      isPayment 
+                        ? (item as Payment).type === 'subscription' 
+                          ? "bg-primary/20" 
+                          : (item as Payment).type === 'extension' 
+                            ? "bg-accent/20" 
+                            : "bg-warning/20"
+                        : "bg-success/20"
+                    )}>
+                      <DollarSign className={cn(
+                        "w-5 h-5",
+                        isPayment 
+                          ? (item as Payment).type === 'subscription' 
+                            ? "text-primary" 
+                            : (item as Payment).type === 'extension' 
+                              ? "text-accent" 
+                              : "text-warning"
+                          : "text-success"
+                      )} />
+                    </div>
+                    <div>
+                      <p className="font-medium">
+                        {isPayment ? (item as Payment).subscriberName : (item as any).name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {isPayment 
+                          ? (item as Payment).type === 'subscription' 
+                            ? 'اشتراك جديد' 
+                            : (item as Payment).type === 'extension' 
+                              ? 'تمديد اشتراك' 
+                              : 'دفعة أخرى'
+                          : (item as any).type
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-left">
+                    <p className="font-bold text-success">{(isPayment ? (item as Payment).amount : (item as any).amount).toLocaleString()} شيكل</p>
+                    <p className="text-xs text-muted-foreground">{item.date}</p>
+                  </div>
+                </div>
+              );
+            })}
+            {monthlyPayments.length === 0 && monthlySales.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                لا يوجد عمليات مالية لهذا الشهر
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

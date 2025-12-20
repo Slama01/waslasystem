@@ -35,11 +35,14 @@ export const NetworkApp = () => {
     stats,
     currentUser,
     addSubscriber,
+    updateSubscriber,
     deleteSubscriber,
     extendSubscription,
     addRouter,
+    updateRouter,
     deleteRouter,
     addSale,
+    updateSale,
     deleteSale,
     addStaff,
     deleteStaff,
@@ -64,15 +67,16 @@ export const NetworkApp = () => {
             subscribers={subscribers} 
             staff={staff}
             onAdd={addSubscriber} 
+            onUpdate={updateSubscriber}
             onDelete={deleteSubscriber}
             onExtend={extendSubscription}
             getSubscriberPayments={getSubscriberPayments}
           />
         );
       case 'routers':
-        return <RoutersPage routers={routers} onAdd={addRouter} onDelete={deleteRouter} />;
+        return <RoutersPage routers={routers} onAdd={addRouter} onUpdate={updateRouter} onDelete={deleteRouter} />;
       case 'sales':
-        return <SalesPage sales={sales} onAdd={addSale} onDelete={deleteSale} />;
+        return <SalesPage sales={sales} onAdd={addSale} onUpdate={updateSale} onDelete={deleteSale} />;
       case 'staff':
         return <StaffPage staff={staff} onAdd={addStaff} onDelete={deleteStaff} />;
       case 'settings':

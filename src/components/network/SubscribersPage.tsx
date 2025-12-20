@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Subscriber, Payment, Staff } from '@/types/network';
-import { Plus, Search, Trash2, Eye, Calendar, Gauge, Monitor, User, RefreshCw, AlertTriangle, Clock, Ban, DollarSign, CreditCard } from 'lucide-react';
+import { Plus, Search, Trash2, Eye, Calendar, Gauge, Monitor, User, RefreshCw, AlertTriangle, Clock, Ban, DollarSign, CreditCard, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -13,6 +13,7 @@ interface SubscribersPageProps {
   subscribers: Subscriber[];
   staff: Staff[];
   onAdd: (sub: Omit<Subscriber, 'id' | 'status' | 'daysLeft'>, initialPayment?: number) => void;
+  onUpdate: (id: string, data: Partial<Subscriber>) => void;
   onDelete: (id: string) => void;
   onExtend: (id: string, days: number, amount: number) => void;
   getSubscriberPayments: (subscriberId: string) => Payment[];
@@ -22,6 +23,7 @@ export const SubscribersPage = ({
   subscribers, 
   staff,
   onAdd, 
+  onUpdate,
   onDelete, 
   onExtend,
   getSubscriberPayments 
@@ -30,9 +32,20 @@ export const SubscribersPage = ({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [speedFilter, setSpeedFilter] = useState<string>('all');
   const [selectedSub, setSelectedSub] = useState<Subscriber | null>(null);
+  const [editDialogSub, setEditDialogSub] = useState<Subscriber | null>(null);
   const [extendDialogSub, setExtendDialogSub] = useState<Subscriber | null>(null);
   const [extendDays, setExtendDays] = useState(30);
   const [extendAmount, setExtendAmount] = useState(50);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    phone: '',
+    devices: 1,
+    startDate: '',
+    expireDate: '',
+    type: 'monthly' as 'monthly' | 'user',
+    speed: 20,
+    balance: 0,
+  });
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -60,6 +73,28 @@ export const SubscribersPage = ({
     if (confirm('هل تريد حذف هذا المشترك؟')) {
       onDelete(id);
       toast.success('تم حذف المشترك');
+    }
+  };
+
+  const handleOpenEditDialog = (sub: Subscriber) => {
+    setEditFormData({
+      name: sub.name,
+      phone: sub.phone,
+      devices: sub.devices,
+      startDate: sub.startDate,
+      expireDate: sub.expireDate,
+      type: sub.type,
+      speed: sub.speed,
+      balance: sub.balance || 0,
+    });
+    setEditDialogSub(sub);
+  };
+
+  const handleEditSubmit = () => {
+    if (editDialogSub) {
+      onUpdate(editDialogSub.id, editFormData);
+      toast.success('تم تعديل بيانات المشترك بنجاح');
+      setEditDialogSub(null);
     }
   };
 
@@ -316,6 +351,15 @@ export const SubscribersPage = ({
                     >
                       <RefreshCw className="w-4 h-4" />
                     </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="text-amber-500 hover:bg-amber-500/10"
+                      onClick={() => handleOpenEditDialog(sub)}
+                      title="تعديل البيانات"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => setSelectedSub(sub)}>
                       <Eye className="w-4 h-4" />
                     </Button>
@@ -481,6 +525,102 @@ export const SubscribersPage = ({
             <Button onClick={handleExtend} className="gradient-primary">
               <RefreshCw className="w-4 h-4 ml-2" />
               تمديد الاشتراك
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editDialogSub} onOpenChange={() => setEditDialogSub(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-amber-500" />
+              تعديل بيانات المشترك
+            </DialogTitle>
+          </DialogHeader>
+          {editDialogSub && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">الاسم</label>
+                  <Input
+                    value={editFormData.name}
+                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">رقم الهاتف</label>
+                  <Input
+                    value={editFormData.phone}
+                    onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">تاريخ البداية</label>
+                  <Input
+                    type="date"
+                    value={editFormData.startDate}
+                    onChange={(e) => setEditFormData({ ...editFormData, startDate: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">تاريخ الانتهاء</label>
+                  <Input
+                    type="date"
+                    value={editFormData.expireDate}
+                    onChange={(e) => setEditFormData({ ...editFormData, expireDate: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">نوع الاشتراك</label>
+                  <Select
+                    value={editFormData.type}
+                    onValueChange={(v) => setEditFormData({ ...editFormData, type: v as 'monthly' | 'user' })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">شهري</SelectItem>
+                      <SelectItem value="user">يوزر</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">السرعة (Mbps)</label>
+                  <Input
+                    type="number"
+                    value={editFormData.speed}
+                    onChange={(e) => setEditFormData({ ...editFormData, speed: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+                {editFormData.type === 'user' && (
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-2 block">عدد الأجهزة</label>
+                    <Input
+                      type="number"
+                      value={editFormData.devices}
+                      onChange={(e) => setEditFormData({ ...editFormData, devices: parseInt(e.target.value) || 1 })}
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">المديونية (شيكل)</label>
+                  <Input
+                    type="number"
+                    value={editFormData.balance || 0}
+                    onChange={(e) => setEditFormData({ ...editFormData, balance: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogSub(null)}>إلغاء</Button>
+            <Button onClick={handleEditSubmit} className="bg-amber-500 hover:bg-amber-600">
+              <Edit className="w-4 h-4 ml-2" />
+              حفظ التعديلات
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -3,19 +3,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Sale } from '@/types/network';
-import { Plus, Trash2, DollarSign, Package, Calendar } from 'lucide-react';
+import { Plus, Trash2, DollarSign, Package, Calendar, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 interface SalesPageProps {
   sales: Sale[];
   onAdd: (sale: Omit<Sale, 'id' | 'date'>) => void;
+  onUpdate: (id: string, data: Partial<Sale>) => void;
   onDelete: (id: string) => void;
 }
 
-export const SalesPage = ({ sales, onAdd, onDelete }: SalesPageProps) => {
+export const SalesPage = ({ sales, onAdd, onUpdate, onDelete }: SalesPageProps) => {
   const [filter, setFilter] = useState<string>('all');
+  const [editDialogSale, setEditDialogSale] = useState<Sale | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    type: 'retail' as 'wholesale' | 'retail',
+    count: 0,
+    price: 0,
+  });
   const [formData, setFormData] = useState({
     type: 'retail' as 'wholesale' | 'retail',
     count: 0,
@@ -37,6 +45,23 @@ export const SalesPage = ({ sales, onAdd, onDelete }: SalesPageProps) => {
     if (confirm('هل تريد حذف هذا البيع؟')) {
       onDelete(id);
       toast.success('تم حذف البيع');
+    }
+  };
+
+  const handleOpenEditDialog = (sale: Sale) => {
+    setEditFormData({
+      type: sale.type,
+      count: sale.count,
+      price: sale.price,
+    });
+    setEditDialogSale(sale);
+  };
+
+  const handleEditSubmit = () => {
+    if (editDialogSale) {
+      onUpdate(editDialogSale.id, editFormData);
+      toast.success('تم تعديل بيانات البيع بنجاح');
+      setEditDialogSale(null);
     }
   };
 
@@ -176,6 +201,15 @@ export const SalesPage = ({ sales, onAdd, onDelete }: SalesPageProps) => {
                     <p className="text-2xl font-bold text-success">{sale.price}</p>
                     <p className="text-xs text-muted-foreground">شيكل</p>
                   </div>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="text-amber-500 hover:bg-amber-500/10"
+                    onClick={() => handleOpenEditDialog(sale)}
+                    title="تعديل البيع"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
                   <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(sale.id)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -191,6 +225,60 @@ export const SalesPage = ({ sales, onAdd, onDelete }: SalesPageProps) => {
           لا يوجد مبيعات
         </div>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editDialogSale} onOpenChange={() => setEditDialogSale(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-amber-500" />
+              تعديل بيانات البيع
+            </DialogTitle>
+          </DialogHeader>
+          {editDialogSale && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">نوع البيع</label>
+                <Select
+                  value={editFormData.type}
+                  onValueChange={(v) => setEditFormData({ ...editFormData, type: v as 'wholesale' | 'retail' })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="wholesale">جملة</SelectItem>
+                    <SelectItem value="retail">مفرق</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">عدد الكروت</label>
+                <Input
+                  type="number"
+                  value={editFormData.count || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, count: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">السعر (شيكل)</label>
+                <Input
+                  type="number"
+                  value={editFormData.price || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, price: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogSale(null)}>إلغاء</Button>
+            <Button onClick={handleEditSubmit} className="bg-amber-500 hover:bg-amber-600">
+              <Edit className="w-4 h-4 ml-2" />
+              حفظ التعديلات
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -3,20 +3,29 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Router as RouterType } from '@/types/network';
-import { Plus, Trash2, Eye, MapPin, Wifi, WifiOff, Server } from 'lucide-react';
+import { Plus, Trash2, Eye, MapPin, Wifi, WifiOff, Server, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 interface RoutersPageProps {
   routers: RouterType[];
   onAdd: (router: Omit<RouterType, 'id'>) => void;
+  onUpdate: (id: string, data: Partial<RouterType>) => void;
   onDelete: (id: string) => void;
 }
 
-export const RoutersPage = ({ routers, onAdd, onDelete }: RoutersPageProps) => {
+export const RoutersPage = ({ routers, onAdd, onUpdate, onDelete }: RoutersPageProps) => {
   const [selectedRouter, setSelectedRouter] = useState<RouterType | null>(null);
+  const [editDialogRouter, setEditDialogRouter] = useState<RouterType | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    model: '',
+    location: '',
+    status: 'online' as 'online' | 'offline',
+    ip: '',
+  });
   const [customModel, setCustomModel] = useState('');
   const [showCustomModel, setShowCustomModel] = useState(false);
   const [routerModels, setRouterModels] = useState<string[]>(() => {
@@ -59,6 +68,25 @@ export const RoutersPage = ({ routers, onAdd, onDelete }: RoutersPageProps) => {
     if (confirm('هل تريد حذف هذا الراوتر؟')) {
       onDelete(id);
       toast.success('تم حذف الراوتر');
+    }
+  };
+
+  const handleOpenEditDialog = (router: RouterType) => {
+    setEditFormData({
+      name: router.name,
+      model: router.model,
+      location: router.location,
+      status: router.status,
+      ip: router.ip || '',
+    });
+    setEditDialogRouter(router);
+  };
+
+  const handleEditSubmit = () => {
+    if (editDialogRouter) {
+      onUpdate(editDialogRouter.id, editFormData);
+      toast.success('تم تعديل بيانات الراوتر بنجاح');
+      setEditDialogRouter(null);
     }
   };
 
@@ -202,6 +230,15 @@ export const RoutersPage = ({ routers, onAdd, onDelete }: RoutersPageProps) => {
                   {router.status === 'online' ? 'متصل' : 'غير متصل'}
                 </span>
                 <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="text-amber-500 hover:bg-amber-500/10"
+                    onClick={() => handleOpenEditDialog(router)}
+                    title="تعديل البيانات"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => setSelectedRouter(router)}>
                     <Eye className="w-4 h-4" />
                   </Button>
@@ -267,6 +304,81 @@ export const RoutersPage = ({ routers, onAdd, onDelete }: RoutersPageProps) => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editDialogRouter} onOpenChange={() => setEditDialogRouter(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-amber-500" />
+              تعديل بيانات الراوتر
+            </DialogTitle>
+          </DialogHeader>
+          {editDialogRouter && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">اسم الراوتر</label>
+                <Input
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">الموديل</label>
+                <Select
+                  value={editFormData.model}
+                  onValueChange={(v) => setEditFormData({ ...editFormData, model: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {routerModels.map(model => (
+                      <SelectItem key={model} value={model}>{model}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">الموقع</label>
+                <Input
+                  value={editFormData.location}
+                  onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">عنوان IP</label>
+                <Input
+                  value={editFormData.ip}
+                  onChange={(e) => setEditFormData({ ...editFormData, ip: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">الحالة</label>
+                <Select
+                  value={editFormData.status}
+                  onValueChange={(v) => setEditFormData({ ...editFormData, status: v as 'online' | 'offline' })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="online">متصل</SelectItem>
+                    <SelectItem value="offline">غير متصل</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogRouter(null)}>إلغاء</Button>
+            <Button onClick={handleEditSubmit} className="bg-amber-500 hover:bg-amber-600">
+              <Edit className="w-4 h-4 ml-2" />
+              حفظ التعديلات
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

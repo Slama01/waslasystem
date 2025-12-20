@@ -180,7 +180,11 @@ export const useNetworkData = () => {
     });
     setSubscribers(updated);
     localStorage.setItem('subs', JSON.stringify(updated));
-  }, [subscribers]);
+    const sub = updated.find(s => s.id === id);
+    if (sub) {
+      logActivity('edit', 'subscriber', sub.name, 'تم تعديل بيانات المشترك');
+    }
+  }, [subscribers, logActivity]);
 
   const deleteSubscriber = useCallback((id: string) => {
     const sub = subscribers.find(s => s.id === id);
@@ -264,6 +268,16 @@ export const useNetworkData = () => {
     logActivity('add', 'router', newRouter.name);
   }, [routers, logActivity]);
 
+  const updateRouter = useCallback((id: string, data: Partial<Router>) => {
+    const updated = routers.map(r => r.id === id ? { ...r, ...data } : r);
+    setRouters(updated);
+    localStorage.setItem('routers', JSON.stringify(updated));
+    const router = updated.find(r => r.id === id);
+    if (router) {
+      logActivity('edit', 'router', router.name, 'تم تعديل بيانات الراوتر');
+    }
+  }, [routers, logActivity]);
+
   const deleteRouter = useCallback((id: string) => {
     const router = routers.find(r => r.id === id);
     const updated = routers.filter(r => r.id !== id);
@@ -281,6 +295,13 @@ export const useNetworkData = () => {
     setSales(updated);
     localStorage.setItem('sales', JSON.stringify(updated));
     logActivity('add', 'sale', `${sale.count} كرت`, `${sale.price} شيكل`);
+  }, [sales, logActivity]);
+
+  const updateSale = useCallback((id: string, data: Partial<Sale>) => {
+    const updated = sales.map(s => s.id === id ? { ...s, ...data } : s);
+    setSales(updated);
+    localStorage.setItem('sales', JSON.stringify(updated));
+    logActivity('edit', 'sale', `تعديل بيع`, `${data.count || ''} كرت - ${data.price || ''} شيكل`);
   }, [sales, logActivity]);
 
   const deleteSale = useCallback((id: string) => {
@@ -349,8 +370,10 @@ export const useNetworkData = () => {
     deleteSubscriber,
     extendSubscription,
     addRouter,
+    updateRouter,
     deleteRouter,
     addSale,
+    updateSale,
     deleteSale,
     addStaff,
     deleteStaff,

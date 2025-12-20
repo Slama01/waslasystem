@@ -68,7 +68,7 @@ export const SettingsPage = ({
         </CardHeader>
         <CardContent>
           <div className="space-y-3 text-muted-foreground">
-            <p className="bg-primary-foreground"><strong>شبكة بلس</strong>​وصلة</p>
+            
             <p>نظام متكامل لإدارة شبكات الإنترنت والاشتراكات</p>
             <p className="text-sm">الإصدار 2.0</p>
           </div>

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { 
   LayoutDashboard, 
   Users, 
@@ -8,10 +9,14 @@ import {
   LogOut,
   Wifi,
   FileText,
-  Activity
+  Activity,
+  Menu,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Staff } from '@/types/network';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 interface SidebarProps {
   currentPage: string;
@@ -31,34 +36,45 @@ const menuItems = [
   { id: 'settings', label: 'الإعدادات', icon: Settings, roles: ['admin'] },
 ];
 
-export const Sidebar = ({ currentPage, onPageChange, currentUser, onLogout }: SidebarProps) => {
+const SidebarContent = ({ 
+  currentPage, 
+  onPageChange, 
+  currentUser, 
+  onLogout,
+  onItemClick 
+}: SidebarProps & { onItemClick?: () => void }) => {
   const filteredMenu = menuItems.filter(item => item.roles.includes(currentUser.role));
 
+  const handlePageChange = (page: string) => {
+    onPageChange(page);
+    onItemClick?.();
+  };
+
   return (
-    <aside className="fixed right-0 top-0 h-screen w-64 gradient-sidebar text-sidebar-foreground flex flex-col z-50">
+    <>
       {/* Logo */}
-      <div className="p-6 border-b border-sidebar-border">
+      <div className="p-4 lg:p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 gradient-primary rounded-xl flex items-center justify-center">
-            <Wifi className="w-7 h-7 text-primary-foreground" />
+          <div className="w-10 h-10 lg:w-12 lg:h-12 gradient-primary rounded-xl flex items-center justify-center">
+            <Wifi className="w-5 h-5 lg:w-7 lg:h-7 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">وصلة</h1>
+            <h1 className="text-lg lg:text-xl font-bold">وصلة</h1>
             <p className="text-xs text-sidebar-foreground/60">إدارة الشبكات</p>
           </div>
         </div>
       </div>
 
       {/* User Info */}
-      <div className="p-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-sidebar-accent">
-          <div className="w-10 h-10 rounded-full bg-sidebar-primary flex items-center justify-center">
-            <span className="text-sidebar-primary-foreground font-bold">
+      <div className="p-3 lg:p-4 border-b border-sidebar-border">
+        <div className="flex items-center gap-3 p-2 lg:p-3 rounded-lg bg-sidebar-accent">
+          <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-sidebar-primary flex items-center justify-center">
+            <span className="text-sidebar-primary-foreground font-bold text-sm lg:text-base">
               {currentUser.name.charAt(0)}
             </span>
           </div>
-          <div>
-            <p className="font-medium">{currentUser.name}</p>
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-sm lg:text-base truncate">{currentUser.name}</p>
             <p className="text-xs text-sidebar-foreground/60">
               {currentUser.role === 'admin' ? 'مدير' : 
                currentUser.role === 'subs' ? 'مشتركين' :
@@ -70,21 +86,21 @@ export const Sidebar = ({ currentPage, onPageChange, currentUser, onLogout }: Si
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 overflow-y-auto">
-        <ul className="space-y-2">
+      <nav className="flex-1 p-3 lg:p-4 overflow-y-auto">
+        <ul className="space-y-1 lg:space-y-2">
           {filteredMenu.map((item) => (
             <li key={item.id}>
               <button
-                onClick={() => onPageChange(item.id)}
+                onClick={() => handlePageChange(item.id)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200",
+                  "w-full flex items-center gap-3 px-3 lg:px-4 py-2.5 lg:py-3 rounded-lg transition-all duration-200",
                   currentPage === item.id
                     ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg"
                     : "hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground"
                 )}
               >
                 <item.icon className="w-5 h-5" />
-                <span className="font-medium">{item.label}</span>
+                <span className="font-medium text-sm lg:text-base">{item.label}</span>
               </button>
             </li>
           ))}
@@ -92,15 +108,55 @@ export const Sidebar = ({ currentPage, onPageChange, currentUser, onLogout }: Si
       </nav>
 
       {/* Logout */}
-      <div className="p-4 border-t border-sidebar-border">
+      <div className="p-3 lg:p-4 border-t border-sidebar-border">
         <button
           onClick={onLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
+          className="w-full flex items-center gap-3 px-3 lg:px-4 py-2.5 lg:py-3 rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
         >
           <LogOut className="w-5 h-5" />
-          <span className="font-medium">تسجيل الخروج</span>
+          <span className="font-medium text-sm lg:text-base">تسجيل الخروج</span>
         </button>
       </div>
-    </aside>
+    </>
+  );
+};
+
+export const Sidebar = ({ currentPage, onPageChange, currentUser, onLogout }: SidebarProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <>
+      {/* Mobile Menu Button */}
+      <Sheet open={isOpen} onOpenChange={setIsOpen}>
+        <SheetTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="fixed top-3 right-3 z-50 lg:hidden bg-card shadow-lg border border-border"
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="right" className="w-[280px] p-0 gradient-sidebar text-sidebar-foreground">
+          <SidebarContent 
+            currentPage={currentPage}
+            onPageChange={onPageChange}
+            currentUser={currentUser}
+            onLogout={onLogout}
+            onItemClick={() => setIsOpen(false)}
+          />
+        </SheetContent>
+      </Sheet>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex fixed right-0 top-0 h-screen w-64 gradient-sidebar text-sidebar-foreground flex-col z-40">
+        <SidebarContent 
+          currentPage={currentPage}
+          onPageChange={onPageChange}
+          currentUser={currentUser}
+          onLogout={onLogout}
+        />
+      </aside>
+    </>
   );
 };

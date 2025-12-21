@@ -25,40 +25,40 @@ export const LoginPage = ({
       setIsLoading(false);
     }, 500);
   };
-  return <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-accent/10">
+  return <div className="min-h-screen flex items-center justify-center p-3 sm:p-4 bg-gradient-to-br from-primary/10 via-background to-accent/10">
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-20 right-20 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-20 left-20 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse" style={{
+        <div className="absolute top-10 sm:top-20 right-10 sm:right-20 w-48 sm:w-72 h-48 sm:h-72 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-10 sm:bottom-20 left-10 sm:left-20 w-64 sm:w-96 h-64 sm:h-96 bg-accent/20 rounded-full blur-3xl animate-pulse" style={{
         animationDelay: '1s'
       }} />
       </div>
       
       <Card className="w-full max-w-md relative animate-scale-in shadow-2xl border-primary/20">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-20 h-20 gradient-primary rounded-2xl flex items-center justify-center shadow-lg animate-pulse-glow">
-            <Wifi className="w-10 h-10 text-primary-foreground" />
+        <CardHeader className="text-center space-y-3 sm:space-y-4 px-4 sm:px-6">
+          <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 gradient-primary rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg animate-pulse-glow">
+            <Wifi className="w-8 h-8 sm:w-10 sm:h-10 text-primary-foreground" />
           </div>
-          <CardTitle className="text-3xl font-bold bg-gradient-to-l from-primary to-accent bg-clip-text text-transparent">
+          <CardTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-l from-primary to-accent bg-clip-text text-transparent">
             وصلة
           </CardTitle>
-          <p className="text-muted-foreground">نظام إدارة شبكات الإنترنت
+          <p className="text-sm sm:text-base text-muted-foreground">نظام إدارة شبكات الإنترنت
 "admin"
 123456</p>
         </CardHeader>
         
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="px-4 sm:px-6">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             <div className="relative">
               <User className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input type="text" placeholder="اسم المستخدم" value={username} onChange={e => setUsername(e.target.value)} className="pr-10 h-12 text-base" required />
+              <Input type="text" placeholder="اسم المستخدم" value={username} onChange={e => setUsername(e.target.value)} className="pr-10 h-11 sm:h-12 text-base" required />
             </div>
             
             <div className="relative">
               <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input type="password" placeholder="كلمة المرور" value={password} onChange={e => setPassword(e.target.value)} className="pr-10 h-12 text-base" required />
+              <Input type="password" placeholder="كلمة المرور" value={password} onChange={e => setPassword(e.target.value)} className="pr-10 h-11 sm:h-12 text-base" required />
             </div>
             
-            <Button type="submit" className="w-full h-12 text-lg font-semibold gradient-primary hover:opacity-90 transition-all" disabled={isLoading}>
+            <Button type="submit" className="w-full h-11 sm:h-12 text-base sm:text-lg font-semibold gradient-primary hover:opacity-90 transition-all" disabled={isLoading}>
               {isLoading ? 'جاري التحقق...' : 'تسجيل الدخول'}
             </Button>
           </form>

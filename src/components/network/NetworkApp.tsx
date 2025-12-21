@@ -99,9 +99,9 @@ export const NetworkApp = () => {
         onLogout={logout}
       />
       
-      <main className="mr-64">
+      <main className="lg:mr-64">
         <Header title={pageTitles[currentPage]} />
-        <div className="p-6">
+        <div className="p-3 sm:p-4 lg:p-6">
           {renderPage()}
         </div>
       </main>

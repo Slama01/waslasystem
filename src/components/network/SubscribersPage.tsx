@@ -164,17 +164,17 @@ export const SubscribersPage = ({
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 lg:space-y-6 animate-fade-in">
       {/* Add Form */}
       <Card className="shadow-lg border-border/50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="w-5 h-5 text-primary" />
+        <CardHeader className="p-3 sm:p-4 lg:p-6">
+          <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
+            <Plus className="w-4 h-4 lg:w-5 lg:h-5 text-primary" />
             إضافة مشترك جديد
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <CardContent className="p-3 sm:p-4 lg:p-6 pt-0">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
             <Input
               placeholder="اسم المشترك"
               value={formData.name}
@@ -238,7 +238,7 @@ export const SubscribersPage = ({
       </Card>
 
       {/* Search and Filter */}
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex flex-col gap-3 lg:gap-4">
         <div className="relative flex-1">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <Input
@@ -248,30 +248,32 @@ export const SubscribersPage = ({
             className="pr-10"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full md:w-48">
-            <SelectValue placeholder="تصفية حسب الحالة" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">كل الحالات</SelectItem>
-            <SelectItem value="active">🟢 فعّال</SelectItem>
-            <SelectItem value="expiring">🟠 قرب الانتهاء</SelectItem>
-            <SelectItem value="expired">🔴 منتهي</SelectItem>
-            <SelectItem value="stopped">⚫ موقوف</SelectItem>
-            <SelectItem value="indebted">💸 مديون</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={speedFilter} onValueChange={setSpeedFilter}>
-          <SelectTrigger className="w-full md:w-48">
-            <SelectValue placeholder="تصفية حسب السرعة" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">كل السرعات</SelectItem>
-            {uniqueSpeeds.map(speed => (
-              <SelectItem key={speed} value={speed.toString()}>{speed} Mbps</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2 sm:gap-3">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="flex-1 sm:w-40 lg:w-48">
+              <SelectValue placeholder="الحالة" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل الحالات</SelectItem>
+              <SelectItem value="active">🟢 فعّال</SelectItem>
+              <SelectItem value="expiring">🟠 قرب الانتهاء</SelectItem>
+              <SelectItem value="expired">🔴 منتهي</SelectItem>
+              <SelectItem value="stopped">⚫ موقوف</SelectItem>
+              <SelectItem value="indebted">💸 مديون</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={speedFilter} onValueChange={setSpeedFilter}>
+            <SelectTrigger className="flex-1 sm:w-40 lg:w-48">
+              <SelectValue placeholder="السرعة" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل السرعات</SelectItem>
+              {uniqueSpeeds.map(speed => (
+                <SelectItem key={speed} value={speed.toString()}>{speed} Mbps</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Results count */}
@@ -280,7 +282,7 @@ export const SubscribersPage = ({
       </div>
 
       {/* Subscribers Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 lg:gap-4">
         {filteredSubscribers.map((sub, index) => {
           const config = statusConfig[sub.status];
           return (
@@ -294,7 +296,7 @@ export const SubscribersPage = ({
               )}
               style={{ animationDelay: `${index * 50}ms` }}
             >
-              <CardContent className="p-5">
+              <CardContent className="p-3 sm:p-4 lg:p-5">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className={cn(

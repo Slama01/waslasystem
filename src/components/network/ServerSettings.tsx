@@ -22,14 +22,29 @@ export function ServerSettings() {
     }
   }, []);
 
+  const normalizeServerUrl = (raw: string) => {
+    let url = (raw || '').trim();
+    if (!url) return url;
+
+    // Remove trailing slashes
+    url = url.replace(/\/+$/, '');
+
+    // If user pasted /api at the end, strip it (we append /api internally)
+    url = url.replace(/\/api$/i, '');
+
+    return url;
+  };
+
   const handleTestConnection = async () => {
+    const normalizedUrl = normalizeServerUrl(serverUrl);
+
     setTesting(true);
     setConnectionStatus('unknown');
-    
+
     try {
-      const isConnected = await testServerConnection(serverUrl);
+      const isConnected = await testServerConnection(normalizedUrl);
       setConnectionStatus(isConnected ? 'connected' : 'failed');
-      
+
       if (isConnected) {
         toast.success('تم الاتصال بالخادم بنجاح');
       } else {
@@ -44,7 +59,10 @@ export function ServerSettings() {
   };
 
   const handleSave = () => {
-    setLocalServerMode(useServer, serverUrl);
+    const normalizedUrl = normalizeServerUrl(serverUrl);
+    setServerUrl(normalizedUrl);
+    setLocalServerMode(useServer, normalizedUrl);
+
     toast.success('تم حفظ الإعدادات. يرجى تحديث الصفحة.');
     setTimeout(() => {
       window.location.reload();

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Wifi, Lock, User } from 'lucide-react';
 import { toast } from 'sonner';
 interface LoginPageProps {
-  onLogin: (username: string, password: string) => boolean;
+  onLogin: (username: string, password: string) => boolean | Promise<boolean>;
 }
 export const LoginPage = ({
   onLogin
@@ -13,17 +13,21 @@ export const LoginPage = ({
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
-      if (onLogin(username, password)) {
+    try {
+      const result = await onLogin(username, password);
+      if (result) {
         toast.success('تم تسجيل الدخول بنجاح');
       } else {
         toast.error('اسم المستخدم أو كلمة المرور غير صحيحة');
       }
+    } catch (error) {
+      toast.error('حدث خطأ في الاتصال');
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
   return <div className="min-h-screen flex items-center justify-center p-3 sm:p-4 bg-gradient-to-br from-primary/10 via-background to-accent/10">
       <div className="absolute inset-0 overflow-hidden">

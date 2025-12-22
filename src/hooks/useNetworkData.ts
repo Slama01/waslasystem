@@ -110,7 +110,11 @@ export const useNetworkData = () => {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [activityLog, setActivityLog] = useState<ActivityLog[]>([]);
-  const [currentUser, setCurrentUser] = useState<Staff | null>(null);
+  const [currentUser, setCurrentUser] = useState<Staff | null>(() => {
+    // استعادة بيانات المستخدم من localStorage عند التحميل
+    const savedUser = localStorage.getItem('currentUser');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isServerMode, setIsServerMode] = useState(false);
 
@@ -768,12 +772,14 @@ export const useNetworkData = () => {
           method: 'POST',
           body: JSON.stringify({ username, password }),
         });
-        setCurrentUser({
+        const loggedInUser = {
           id: user.id,
           name: user.name || user.username,
           password: '',
           role: user.role,
-        });
+        };
+        setCurrentUser(loggedInUser);
+        localStorage.setItem('currentUser', JSON.stringify(loggedInUser));
         // Refresh all data after login
         await refreshData();
         return true;
@@ -786,6 +792,7 @@ export const useNetworkData = () => {
     const user = staff.find(s => s.name === username && s.password === password);
     if (user) {
       setCurrentUser(user);
+      localStorage.setItem('currentUser', JSON.stringify(user));
       return true;
     }
     return false;
@@ -793,6 +800,7 @@ export const useNetworkData = () => {
 
   const logout = useCallback(() => {
     setCurrentUser(null);
+    localStorage.removeItem('currentUser');
   }, []);
 
   const changePassword = useCallback(async (newPassword: string) => {

@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Lock, Save, Shield } from 'lucide-react';
 import { toast } from 'sonner';
+import { ServerSettings } from './ServerSettings';
 interface SettingsPageProps {
   onChangePassword: (newPassword: string) => void;
 }
@@ -75,5 +76,8 @@ export const SettingsPage = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Server Settings */}
+      <ServerSettings />
     </div>;
 };

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Subscriber, Router, Sale, Staff, DashboardStats, Payment, ActivityLog, SubscriberStatus } from '@/types/network';
+import { isLocalServerMode, getApiUrl } from '@/lib/api';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -21,6 +22,87 @@ const getSubscriberStatus = (expireDate: string, balance?: number): SubscriberSt
   return 'active';
 };
 
+// Helper to map server subscriber format to frontend format
+const mapServerSubscriber = (s: any): Subscriber => ({
+  id: s.id,
+  name: s.name,
+  phone: s.phone || '',
+  devices: s.maxDevices || s.devices || 1,
+  startDate: s.startDate || '',
+  expireDate: s.expireDate || '',
+  type: s.subscriptionType || s.type || 'monthly',
+  speed: Number(s.speed) || 0,
+  balance: Number(s.balance) || 0,
+  notes: s.notes || '',
+  status: getSubscriberStatus(s.expireDate || '', Number(s.balance) || 0),
+  daysLeft: getDaysLeft(s.expireDate || ''),
+});
+
+// Helper to map frontend subscriber to server format
+const mapToServerSubscriber = (s: Partial<Subscriber>) => ({
+  id: s.id,
+  name: s.name,
+  phone: s.phone,
+  maxDevices: s.devices,
+  startDate: s.startDate,
+  expireDate: s.expireDate,
+  subscriptionType: s.type,
+  speed: s.speed,
+  balance: s.balance,
+  notes: s.notes,
+});
+
+// Helper to map server router format to frontend format
+const mapServerRouter = (r: any): Router => ({
+  id: r.id,
+  name: r.name,
+  model: r.model || '',
+  location: r.location || '',
+  status: r.status || 'online',
+  ip: r.ip || '',
+  subscribersCount: r.subscriberCount || r.subscribersCount || 0,
+});
+
+// Helper to map server sale format to frontend format
+const mapServerSale = (s: any): Sale => ({
+  id: s.id,
+  type: s.type || 'retail',
+  count: s.quantity || s.count || 1,
+  price: Number(s.price) || 0,
+  date: s.date?.split('T')[0] || '',
+});
+
+// Helper to map server staff format to frontend format
+const mapServerStaff = (s: any): Staff => ({
+  id: s.id,
+  name: s.name || s.username || '',
+  password: s.password || '',
+  role: s.role || 'staff',
+});
+
+// Helper to map server payment format to frontend format
+const mapServerPayment = (p: any): Payment => ({
+  id: p.id,
+  subscriberId: p.subscriberId || '',
+  subscriberName: p.subscriberName || '',
+  amount: Number(p.amount) || 0,
+  date: p.date?.split('T')[0] || '',
+  staffName: p.staffName || '',
+  type: p.type || 'subscription',
+  notes: p.notes || '',
+});
+
+// Helper to map server activity log format to frontend format
+const mapServerActivityLog = (a: any): ActivityLog => ({
+  id: a.id,
+  action: a.action || 'add',
+  entityType: a.entityType || 'subscriber',
+  entityName: a.entityName || '',
+  staffName: a.userName || a.staffName || '',
+  timestamp: a.timestamp || '',
+  details: a.details || '',
+});
+
 export const useNetworkData = () => {
   const [subscribers, setSubscribers] = useState<Subscriber[]>([]);
   const [routers, setRouters] = useState<Router[]>([]);
@@ -29,9 +111,54 @@ export const useNetworkData = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [activityLog, setActivityLog] = useState<ActivityLog[]>([]);
   const [currentUser, setCurrentUser] = useState<Staff | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isServerMode, setIsServerMode] = useState(false);
 
-  // Load data from localStorage
-  useEffect(() => {
+  // API helper function
+  const apiFetch = useCallback(async <T>(endpoint: string, options?: RequestInit): Promise<T> => {
+    const url = `${getApiUrl()}${endpoint}`;
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'حدث خطأ في الاتصال' }));
+      throw new Error(error.error || 'حدث خطأ في الاتصال');
+    }
+
+    return response.json();
+  }, []);
+
+  // Load all data from server
+  const loadFromServer = useCallback(async () => {
+    try {
+      const [subsData, routersData, salesData, staffData, paymentsData, activityData] = await Promise.all([
+        apiFetch<any[]>('/subscribers'),
+        apiFetch<any[]>('/routers'),
+        apiFetch<any[]>('/sales'),
+        apiFetch<any[]>('/staff'),
+        apiFetch<any[]>('/payments'),
+        apiFetch<any[]>('/activity-log'),
+      ]);
+
+      setSubscribers(subsData.map(mapServerSubscriber));
+      setRouters(routersData.map(mapServerRouter));
+      setSales(salesData.map(mapServerSale));
+      setStaff(staffData.map(mapServerStaff));
+      setPayments(paymentsData.map(mapServerPayment));
+      setActivityLog(activityData.map(mapServerActivityLog));
+    } catch (error) {
+      console.error('Error loading from server:', error);
+      throw error;
+    }
+  }, [apiFetch]);
+
+  // Load data from localStorage (fallback)
+  const loadFromLocalStorage = useCallback(() => {
     const loadedSubs = JSON.parse(localStorage.getItem('subs') || '[]');
     const loadedRouters = JSON.parse(localStorage.getItem('routers') || '[]');
     const loadedSales = JSON.parse(localStorage.getItem('sales') || '[]');
@@ -89,8 +216,27 @@ export const useNetworkData = () => {
     setActivityLog(loadedActivityLog);
   }, []);
 
+  // Initial data load
+  useEffect(() => {
+    const serverMode = isLocalServerMode();
+    setIsServerMode(serverMode);
+    setIsLoading(true);
+
+    if (serverMode) {
+      loadFromServer()
+        .catch(() => {
+          console.warn('Failed to load from server, falling back to localStorage');
+          loadFromLocalStorage();
+        })
+        .finally(() => setIsLoading(false));
+    } else {
+      loadFromLocalStorage();
+      setIsLoading(false);
+    }
+  }, [loadFromServer, loadFromLocalStorage]);
+
   // Add activity log entry
-  const logActivity = useCallback((
+  const logActivity = useCallback(async (
     action: ActivityLog['action'],
     entityType: ActivityLog['entityType'],
     entityName: string,
@@ -105,10 +251,41 @@ export const useNetworkData = () => {
       timestamp: new Date().toISOString(),
       details
     };
-    const updated = [newLog, ...activityLog].slice(0, 100); // Keep last 100 entries
+
+    if (isServerMode) {
+      try {
+        await apiFetch('/activity-log', {
+          method: 'POST',
+          body: JSON.stringify({
+            action,
+            entityType,
+            entityName,
+            details,
+            userName: currentUser?.name || 'غير معروف',
+          }),
+        });
+      } catch (error) {
+        console.error('Error logging activity:', error);
+      }
+    }
+
+    const updated = [newLog, ...activityLog].slice(0, 100);
     setActivityLog(updated);
-    localStorage.setItem('activityLog', JSON.stringify(updated));
-  }, [activityLog, currentUser]);
+    if (!isServerMode) {
+      localStorage.setItem('activityLog', JSON.stringify(updated));
+    }
+  }, [activityLog, currentUser, isServerMode, apiFetch]);
+
+  // Refresh data from server
+  const refreshData = useCallback(async () => {
+    if (isServerMode) {
+      try {
+        await loadFromServer();
+      } catch (error) {
+        console.error('Error refreshing data:', error);
+      }
+    }
+  }, [isServerMode, loadFromServer]);
 
   // Calculate dashboard stats
   const today = new Date().toISOString().split('T')[0];
@@ -133,7 +310,7 @@ export const useNetworkData = () => {
   };
 
   // Subscriber operations
-  const addSubscriber = useCallback((sub: Omit<Subscriber, 'id' | 'status' | 'daysLeft'>, initialPayment?: number) => {
+  const addSubscriber = useCallback(async (sub: Omit<Subscriber, 'id' | 'status' | 'daysLeft'>, initialPayment?: number) => {
     const daysLeft = getDaysLeft(sub.expireDate);
     const newSub: Subscriber = { 
       ...sub, 
@@ -141,12 +318,41 @@ export const useNetworkData = () => {
       status: getSubscriberStatus(sub.expireDate, sub.balance),
       daysLeft
     };
+
+    if (isServerMode) {
+      try {
+        const serverSub = await apiFetch<any>('/subscribers', {
+          method: 'POST',
+          body: JSON.stringify(mapToServerSubscriber(newSub)),
+        });
+        
+        // Add initial payment if provided
+        if (initialPayment && initialPayment > 0) {
+          await apiFetch('/payments', {
+            method: 'POST',
+            body: JSON.stringify({
+              subscriberId: serverSub.id,
+              amount: initialPayment,
+              notes: `اشتراك جديد - سرعة ${sub.speed} ميجا`,
+            }),
+          });
+        }
+
+        await logActivity('add', 'subscriber', newSub.name, `تم إضافة مشترك جديد - سرعة ${sub.speed} ميجا`);
+        await refreshData();
+        return;
+      } catch (error) {
+        console.error('Error adding subscriber:', error);
+        throw error;
+      }
+    }
+
     const updated = [...subscribers, newSub];
     setSubscribers(updated);
     localStorage.setItem('subs', JSON.stringify(updated));
     logActivity('add', 'subscriber', newSub.name, `تم إضافة مشترك جديد - سرعة ${sub.speed} ميجا`);
 
-    // Add initial payment if provided
+    // Add initial payment if provided (localStorage mode)
     if (initialPayment && initialPayment > 0) {
       const newPayment: Payment = {
         id: generateId(),
@@ -162,9 +368,27 @@ export const useNetworkData = () => {
       setPayments(updatedPayments);
       localStorage.setItem('payments', JSON.stringify(updatedPayments));
     }
-  }, [subscribers, payments, currentUser, logActivity]);
+  }, [subscribers, payments, currentUser, logActivity, isServerMode, apiFetch, refreshData]);
 
-  const updateSubscriber = useCallback((id: string, data: Partial<Subscriber>) => {
+  const updateSubscriber = useCallback(async (id: string, data: Partial<Subscriber>) => {
+    if (isServerMode) {
+      try {
+        await apiFetch(`/subscribers/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify(mapToServerSubscriber(data)),
+        });
+        const sub = subscribers.find(s => s.id === id);
+        if (sub) {
+          await logActivity('edit', 'subscriber', sub.name, 'تم تعديل بيانات المشترك');
+        }
+        await refreshData();
+        return;
+      } catch (error) {
+        console.error('Error updating subscriber:', error);
+        throw error;
+      }
+    }
+
     const updated = subscribers.map(s => {
       if (s.id === id) {
         const newExpireDate = data.expireDate || s.expireDate;
@@ -184,20 +408,35 @@ export const useNetworkData = () => {
     if (sub) {
       logActivity('edit', 'subscriber', sub.name, 'تم تعديل بيانات المشترك');
     }
-  }, [subscribers, logActivity]);
+  }, [subscribers, logActivity, isServerMode, apiFetch, refreshData]);
 
-  const deleteSubscriber = useCallback((id: string) => {
+  const deleteSubscriber = useCallback(async (id: string) => {
     const sub = subscribers.find(s => s.id === id);
+    
+    if (isServerMode) {
+      try {
+        await apiFetch(`/subscribers/${id}`, { method: 'DELETE' });
+        if (sub) {
+          await logActivity('delete', 'subscriber', sub.name);
+        }
+        await refreshData();
+        return;
+      } catch (error) {
+        console.error('Error deleting subscriber:', error);
+        throw error;
+      }
+    }
+
     const updated = subscribers.filter(s => s.id !== id);
     setSubscribers(updated);
     localStorage.setItem('subs', JSON.stringify(updated));
     if (sub) {
       logActivity('delete', 'subscriber', sub.name);
     }
-  }, [subscribers, logActivity]);
+  }, [subscribers, logActivity, isServerMode, apiFetch, refreshData]);
 
   // Extend subscription
-  const extendSubscription = useCallback((id: string, days: number = 30, amount: number) => {
+  const extendSubscription = useCallback(async (id: string, days: number = 30, amount: number) => {
     const sub = subscribers.find(s => s.id === id);
     if (!sub) return;
 
@@ -206,7 +445,35 @@ export const useNetworkData = () => {
     newExpire.setDate(newExpire.getDate() + days);
     const newExpireDate = newExpire.toISOString().split('T')[0];
 
-    // Update subscriber
+    if (isServerMode) {
+      try {
+        await apiFetch(`/subscribers/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            expireDate: newExpireDate,
+            balance: 0,
+          }),
+        });
+
+        await apiFetch('/payments', {
+          method: 'POST',
+          body: JSON.stringify({
+            subscriberId: id,
+            amount,
+            notes: `تمديد ${days} يوم`,
+          }),
+        });
+
+        await logActivity('extend', 'subscriber', sub.name, `تمديد ${days} يوم - مبلغ ${amount} شيكل`);
+        await refreshData();
+        return;
+      } catch (error) {
+        console.error('Error extending subscription:', error);
+        throw error;
+      }
+    }
+
+    // Update subscriber (localStorage mode)
     const updated = subscribers.map(s => {
       if (s.id === id) {
         return {
@@ -238,10 +505,29 @@ export const useNetworkData = () => {
     localStorage.setItem('payments', JSON.stringify(updatedPayments));
 
     logActivity('extend', 'subscriber', sub.name, `تمديد ${days} يوم - مبلغ ${amount} شيكل`);
-  }, [subscribers, payments, currentUser, logActivity]);
+  }, [subscribers, payments, currentUser, logActivity, isServerMode, apiFetch, refreshData]);
 
   // Add payment
-  const addPayment = useCallback((payment: Omit<Payment, 'id' | 'date' | 'staffName'>) => {
+  const addPayment = useCallback(async (payment: Omit<Payment, 'id' | 'date' | 'staffName'>) => {
+    if (isServerMode) {
+      try {
+        await apiFetch('/payments', {
+          method: 'POST',
+          body: JSON.stringify({
+            subscriberId: payment.subscriberId,
+            amount: payment.amount,
+            notes: payment.notes || '',
+          }),
+        });
+        await logActivity('payment', 'subscriber', payment.subscriberName, `دفعة ${payment.amount} شيكل`);
+        await refreshData();
+        return;
+      } catch (error) {
+        console.error('Error adding payment:', error);
+        throw error;
+      }
+    }
+
     const newPayment: Payment = {
       ...payment,
       id: generateId(),
@@ -252,7 +538,7 @@ export const useNetworkData = () => {
     setPayments(updated);
     localStorage.setItem('payments', JSON.stringify(updated));
     logActivity('payment', 'subscriber', payment.subscriberName, `دفعة ${payment.amount} شيكل`);
-  }, [payments, currentUser, logActivity]);
+  }, [payments, currentUser, logActivity, isServerMode, apiFetch, refreshData]);
 
   // Get subscriber payments
   const getSubscriberPayments = useCallback((subscriberId: string) => {
@@ -260,15 +546,62 @@ export const useNetworkData = () => {
   }, [payments]);
 
   // Router operations
-  const addRouter = useCallback((router: Omit<Router, 'id'>) => {
+  const addRouter = useCallback(async (router: Omit<Router, 'id'>) => {
+    if (isServerMode) {
+      try {
+        await apiFetch('/routers', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: router.name,
+            model: router.model,
+            ip: router.ip,
+            location: router.location,
+            status: router.status,
+            subscriberCount: router.subscribersCount,
+          }),
+        });
+        await logActivity('add', 'router', router.name);
+        await refreshData();
+        return;
+      } catch (error) {
+        console.error('Error adding router:', error);
+        throw error;
+      }
+    }
+
     const newRouter: Router = { ...router, id: generateId() };
     const updated = [...routers, newRouter];
     setRouters(updated);
     localStorage.setItem('routers', JSON.stringify(updated));
     logActivity('add', 'router', newRouter.name);
-  }, [routers, logActivity]);
+  }, [routers, logActivity, isServerMode, apiFetch, refreshData]);
 
-  const updateRouter = useCallback((id: string, data: Partial<Router>) => {
+  const updateRouter = useCallback(async (id: string, data: Partial<Router>) => {
+    if (isServerMode) {
+      try {
+        await apiFetch(`/routers/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: data.name,
+            model: data.model,
+            ip: data.ip,
+            location: data.location,
+            status: data.status,
+            subscriberCount: data.subscribersCount,
+          }),
+        });
+        const router = routers.find(r => r.id === id);
+        if (router) {
+          await logActivity('edit', 'router', router.name, 'تم تعديل بيانات الراوتر');
+        }
+        await refreshData();
+        return;
+      } catch (error) {
+        console.error('Error updating router:', error);
+        throw error;
+      }
+    }
+
     const updated = routers.map(r => r.id === id ? { ...r, ...data } : r);
     setRouters(updated);
     localStorage.setItem('routers', JSON.stringify(updated));
@@ -276,78 +609,216 @@ export const useNetworkData = () => {
     if (router) {
       logActivity('edit', 'router', router.name, 'تم تعديل بيانات الراوتر');
     }
-  }, [routers, logActivity]);
+  }, [routers, logActivity, isServerMode, apiFetch, refreshData]);
 
-  const deleteRouter = useCallback((id: string) => {
+  const deleteRouter = useCallback(async (id: string) => {
     const router = routers.find(r => r.id === id);
+    
+    if (isServerMode) {
+      try {
+        await apiFetch(`/routers/${id}`, { method: 'DELETE' });
+        if (router) {
+          await logActivity('delete', 'router', router.name);
+        }
+        await refreshData();
+        return;
+      } catch (error) {
+        console.error('Error deleting router:', error);
+        throw error;
+      }
+    }
+
     const updated = routers.filter(r => r.id !== id);
     setRouters(updated);
     localStorage.setItem('routers', JSON.stringify(updated));
     if (router) {
       logActivity('delete', 'router', router.name);
     }
-  }, [routers, logActivity]);
+  }, [routers, logActivity, isServerMode, apiFetch, refreshData]);
 
   // Sale operations
-  const addSale = useCallback((sale: Omit<Sale, 'id' | 'date'>) => {
+  const addSale = useCallback(async (sale: Omit<Sale, 'id' | 'date'>) => {
+    if (isServerMode) {
+      try {
+        await apiFetch('/sales', {
+          method: 'POST',
+          body: JSON.stringify({
+            type: sale.type,
+            quantity: sale.count,
+            price: sale.price,
+          }),
+        });
+        await logActivity('add', 'sale', `${sale.count} كرت`, `${sale.price} شيكل`);
+        await refreshData();
+        return;
+      } catch (error) {
+        console.error('Error adding sale:', error);
+        throw error;
+      }
+    }
+
     const newSale: Sale = { ...sale, id: generateId(), date: new Date().toISOString().split('T')[0] };
     const updated = [...sales, newSale];
     setSales(updated);
     localStorage.setItem('sales', JSON.stringify(updated));
     logActivity('add', 'sale', `${sale.count} كرت`, `${sale.price} شيكل`);
-  }, [sales, logActivity]);
+  }, [sales, logActivity, isServerMode, apiFetch, refreshData]);
 
-  const updateSale = useCallback((id: string, data: Partial<Sale>) => {
+  const updateSale = useCallback(async (id: string, data: Partial<Sale>) => {
+    if (isServerMode) {
+      try {
+        await apiFetch(`/sales/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            type: data.type,
+            quantity: data.count,
+            price: data.price,
+          }),
+        });
+        await logActivity('edit', 'sale', `تعديل بيع`, `${data.count || ''} كرت - ${data.price || ''} شيكل`);
+        await refreshData();
+        return;
+      } catch (error) {
+        console.error('Error updating sale:', error);
+        throw error;
+      }
+    }
+
     const updated = sales.map(s => s.id === id ? { ...s, ...data } : s);
     setSales(updated);
     localStorage.setItem('sales', JSON.stringify(updated));
     logActivity('edit', 'sale', `تعديل بيع`, `${data.count || ''} كرت - ${data.price || ''} شيكل`);
-  }, [sales, logActivity]);
+  }, [sales, logActivity, isServerMode, apiFetch, refreshData]);
 
-  const deleteSale = useCallback((id: string) => {
+  const deleteSale = useCallback(async (id: string) => {
+    if (isServerMode) {
+      try {
+        await apiFetch(`/sales/${id}`, { method: 'DELETE' });
+        await refreshData();
+        return;
+      } catch (error) {
+        console.error('Error deleting sale:', error);
+        throw error;
+      }
+    }
+
     const updated = sales.filter(s => s.id !== id);
     setSales(updated);
     localStorage.setItem('sales', JSON.stringify(updated));
-  }, [sales]);
+  }, [sales, isServerMode, apiFetch, refreshData]);
 
   // Staff operations
-  const addStaff = useCallback((member: Omit<Staff, 'id'>) => {
+  const addStaff = useCallback(async (member: Omit<Staff, 'id'>) => {
+    if (isServerMode) {
+      try {
+        await apiFetch('/staff', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: member.name,
+            username: member.name,
+            password: member.password,
+            role: member.role,
+          }),
+        });
+        await logActivity('add', 'staff', member.name);
+        await refreshData();
+        return;
+      } catch (error) {
+        console.error('Error adding staff:', error);
+        throw error;
+      }
+    }
+
     const newStaff: Staff = { ...member, id: generateId() };
     const updated = [...staff, newStaff];
     setStaff(updated);
     localStorage.setItem('staff', JSON.stringify(updated));
     logActivity('add', 'staff', newStaff.name);
-  }, [staff, logActivity]);
+  }, [staff, logActivity, isServerMode, apiFetch, refreshData]);
 
-  const deleteStaff = useCallback((id: string) => {
+  const deleteStaff = useCallback(async (id: string) => {
     const member = staff.find(s => s.id === id);
+    
+    if (isServerMode) {
+      try {
+        await apiFetch(`/staff/${id}`, { method: 'DELETE' });
+        if (member) {
+          await logActivity('delete', 'staff', member.name);
+        }
+        await refreshData();
+        return;
+      } catch (error) {
+        console.error('Error deleting staff:', error);
+        throw error;
+      }
+    }
+
     const updated = staff.filter(s => s.id !== id);
     setStaff(updated);
     localStorage.setItem('staff', JSON.stringify(updated));
     if (member) {
       logActivity('delete', 'staff', member.name);
     }
-  }, [staff, logActivity]);
+  }, [staff, logActivity, isServerMode, apiFetch, refreshData]);
 
-  const login = useCallback((username: string, password: string): boolean => {
+  const login = useCallback(async (username: string, password: string): Promise<boolean> => {
+    if (isServerMode) {
+      try {
+        const user = await apiFetch<any>('/login', {
+          method: 'POST',
+          body: JSON.stringify({ username, password }),
+        });
+        setCurrentUser({
+          id: user.id,
+          name: user.name || user.username,
+          password: '',
+          role: user.role,
+        });
+        // Refresh all data after login
+        await refreshData();
+        return true;
+      } catch (error) {
+        console.error('Login error:', error);
+        return false;
+      }
+    }
+
     const user = staff.find(s => s.name === username && s.password === password);
     if (user) {
       setCurrentUser(user);
       return true;
     }
     return false;
-  }, [staff]);
+  }, [staff, isServerMode, apiFetch, refreshData]);
 
   const logout = useCallback(() => {
     setCurrentUser(null);
   }, []);
 
-  const changePassword = useCallback((newPassword: string) => {
+  const changePassword = useCallback(async (newPassword: string) => {
     if (!currentUser) return;
+
+    if (isServerMode) {
+      try {
+        await apiFetch('/change-password', {
+          method: 'PUT',
+          body: JSON.stringify({
+            userId: currentUser.id,
+            oldPassword: currentUser.password,
+            newPassword,
+          }),
+        });
+        return;
+      } catch (error) {
+        console.error('Error changing password:', error);
+        throw error;
+      }
+    }
+
     const updated = staff.map(s => s.id === currentUser.id ? { ...s, password: newPassword } : s);
     setStaff(updated);
     localStorage.setItem('staff', JSON.stringify(updated));
-  }, [currentUser, staff]);
+  }, [currentUser, staff, isServerMode, apiFetch]);
 
   // Get alerts (subscribers expiring soon)
   const getAlerts = useCallback(() => {
@@ -365,6 +836,8 @@ export const useNetworkData = () => {
     activityLog,
     stats,
     currentUser,
+    isLoading,
+    isServerMode,
     addSubscriber,
     updateSubscriber,
     deleteSubscriber,
@@ -384,5 +857,6 @@ export const useNetworkData = () => {
     changePassword,
     getAlerts,
     logActivity,
+    refreshData,
   };
 };

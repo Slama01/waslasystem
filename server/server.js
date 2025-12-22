@@ -10,6 +10,32 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json());
 
+// صفحة بسيطة للتأكد أن الخادم يعمل (بدلاً من "Cannot GET /")
+app.get('/', (req, res) => {
+  res
+    .status(200)
+    .type('html')
+    .send(`
+      <!doctype html>
+      <html lang="ar" dir="rtl">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>خادم وصلة المحلي</title>
+        </head>
+        <body style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; padding: 24px; line-height: 1.9;">
+          <h1>خادم وصلة المحلي يعمل ✅</h1>
+          <p>هذا المنفذ (3001) هو <strong>API</strong> فقط وليس واجهة التطبيق.</p>
+          <p>
+            جرّب فحص الاتصال:
+            <a href="/api/health">/api/health</a>
+          </p>
+          <p>واجهة النظام تُفتح من المنفذ <strong>5173</strong> (مثال: <code>http://localhost:5173</code>).</p>
+        </body>
+      </html>
+    `);
+});
+
 const DB_FILE = path.join(__dirname, 'wasla_database.json');
 
 function nowIso() {

@@ -103,13 +103,19 @@ export const activityLogApi = {
 
 // Test connection to local server
 export const testServerConnection = async (serverUrl: string): Promise<boolean> => {
+  // Use AbortController for wider browser support (Safari may not support AbortSignal.timeout)
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 5000);
+
   try {
-    const response = await fetch(`${serverUrl}/api/staff`, { 
+    const response = await fetch(`${serverUrl}/api/health`, {
       method: 'GET',
-      signal: AbortSignal.timeout(5000) // 5 second timeout
+      signal: controller.signal,
     });
     return response.ok;
   } catch {
     return false;
+  } finally {
+    window.clearTimeout(timeoutId);
   }
 };

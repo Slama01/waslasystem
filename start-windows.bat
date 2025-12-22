@@ -1,75 +1,96 @@
 @echo off
+setlocal enabledelayedexpansion
 chcp 65001 >nul
-title وصلة - نظام إدارة الشبكات
+title Wasla Network System
 
 :: Change to the script's directory
 cd /d "%~dp0"
 
 echo.
 echo ========================================================
-echo           وصلة - نظام إدارة الشبكات
-echo           جاري تشغيل النظام...
+echo           Wasla - Network Management System
+echo           Starting...
 echo ========================================================
 echo.
 
+:: Check if Node.js is installed
+where node >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo ERROR: Node.js is not installed!
+    echo Please download from: https://nodejs.org/
+    echo.
+    pause
+    exit /b 1
+)
+
 :: Get local IP address
-set IP=192.168.1.1
+set IP=localhost
 for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4"') do (
-    set IP=%%a
+    for /f "tokens=*" %%b in ("%%a") do set IP=%%b
     goto :found
 )
 :found
-set IP=%IP: =%
 
 :: Check if node_modules exist
 if not exist "node_modules" (
-    echo [0/4] جاري تثبيت المتطلبات للمرة الأولى...
+    echo Installing dependencies...
     call npm install
+    if %ERRORLEVEL% neq 0 (
+        echo ERROR: Failed to install dependencies
+        pause
+        exit /b 1
+    )
     echo.
 )
 
 if not exist "server\node_modules" (
-    echo [0/4] جاري تثبيت متطلبات الخادم...
+    echo Installing server dependencies...
     cd server
     call npm install
+    if %ERRORLEVEL% neq 0 (
+        echo ERROR: Failed to install server dependencies
+        cd ..
+        pause
+        exit /b 1
+    )
     cd ..
     echo.
 )
 
-echo [1/3] جاري تشغيل الخادم...
+echo [1/3] Starting server...
 cd server
-start "" /b cmd /c "npm start"
+start "" /b cmd /c "node server.js"
 cd ..
 
 :: Wait for server to start
-echo      انتظر قليلاً...
-timeout /t 4 /nobreak >nul
+echo      Please wait...
+timeout /t 3 /nobreak >nul
 
-echo [2/3] جاري تشغيل الواجهة...
-start "" /b cmd /c "npm run dev -- --host"
+echo [2/3] Starting frontend...
+start "" /b cmd /c "npm run dev -- --host 0.0.0.0"
 
 :: Wait for frontend to start
-timeout /t 6 /nobreak >nul
+timeout /t 5 /nobreak >nul
 
-echo [3/3] جاري فتح المتصفح...
+echo [3/3] Opening browser...
 start "" http://localhost:5173
 
 echo.
 echo ========================================================
-echo           النظام يعمل الآن!
+echo           System is running!
 echo ========================================================
 echo.
-echo   من اللابتوب: http://localhost:5173
-echo   من الجوال:   http://%IP%:5173
-echo   الخادم:      http://%IP%:3001
+echo   Local:  http://localhost:5173
+echo   Mobile: http://%IP%:5173
+echo   Server: http://%IP%:3001
 echo.
 echo ========================================================
-echo      لا تغلق هذه النافذة أثناء استخدام النظام!
+echo      Do not close this window!
 echo ========================================================
 echo.
-echo اضغط أي مفتاح للايقاف...
+echo Press any key to stop...
 pause >nul
 
 :: Kill processes
 taskkill /f /im node.exe >nul 2>&1
-echo تم ايقاف النظام.
+echo System stopped.

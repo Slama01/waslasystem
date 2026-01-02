@@ -11,10 +11,13 @@ import { StaffPage } from './StaffPage';
 import { SettingsPage } from './SettingsPage';
 import { ReportsPage } from './ReportsPage';
 import { ActivityLogPage } from './ActivityLogPage';
+import { PackagesPage } from './PackagesPage';
+import { TrialExpiryAlert } from './TrialExpiryAlert';
 
 const pageTitles: Record<string, string> = {
   dashboard: 'لوحة التحكم',
   subscribers: 'إدارة المشتركين',
+  packages: 'إدارة الباقات',
   routers: 'إدارة الراوترات',
   sales: 'إدارة المبيعات',
   staff: 'إدارة الموظفين',
@@ -73,6 +76,8 @@ export const NetworkApp = () => {
             getSubscriberPayments={getSubscriberPayments}
           />
         );
+      case 'packages':
+        return <PackagesPage />;
       case 'routers':
         return <RoutersPage routers={routers} onAdd={addRouter} onUpdate={updateRouter} onDelete={deleteRouter} />;
       case 'sales':
@@ -102,6 +107,7 @@ export const NetworkApp = () => {
       <main className="lg:mr-64">
         <Header title={pageTitles[currentPage]} />
         <div className="p-3 sm:p-4 lg:p-6">
+          <TrialExpiryAlert />
           {renderPage()}
         </div>
       </main>

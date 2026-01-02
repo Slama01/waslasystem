@@ -35,6 +35,7 @@ export interface Sale {
   subscriber_id: string | null;
   amount: number;
   type: string;
+  count: number;
   payment_method: string | null;
   notes: string | null;
   created_at: string;
@@ -113,7 +114,7 @@ export function useTenantData() {
         })));
       }
       if (routersRes.data) setRouters(routersRes.data);
-      if (salesRes.data) setSales(salesRes.data.map(s => ({ ...s, amount: Number(s.amount) })));
+      if (salesRes.data) setSales(salesRes.data.map(s => ({ ...s, amount: Number(s.amount), count: s.count || 1 })));
       if (paymentsRes.data) setPayments(paymentsRes.data.map(p => ({ ...p, amount: Number(p.amount) })));
       if (activityRes.data) setActivityLog(activityRes.data);
     } catch (error) {
@@ -292,6 +293,7 @@ export function useTenantData() {
         tenant_id: profile.tenant_id,
         subscriber_id: data.subscriber_id,
         amount: data.amount!,
+        count: data.count || 1,
         type: data.type || 'subscription',
         payment_method: data.payment_method || 'cash',
         notes: data.notes,

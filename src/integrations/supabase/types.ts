@@ -214,6 +214,7 @@ export type Database = {
       sales: {
         Row: {
           amount: number
+          count: number
           created_at: string
           created_by: string | null
           id: string
@@ -225,6 +226,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          count?: number
           created_at?: string
           created_by?: string | null
           id?: string
@@ -236,6 +238,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          count?: number
           created_at?: string
           created_by?: string | null
           id?: string

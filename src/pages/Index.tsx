@@ -91,7 +91,7 @@ const Index = () => {
   const mappedSales = sales.map(s => ({
     id: s.id,
     type: s.type as any,
-    count: 1,
+    count: s.count || 1,
     price: s.amount,
     date: s.created_at.split('T')[0],
   }));
@@ -202,6 +202,7 @@ const Index = () => {
             onAdd={async (s) => {
               await addSale({
                 amount: s.price,
+                count: s.count,
                 type: s.type,
               });
             }} 

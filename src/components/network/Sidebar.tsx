@@ -4,7 +4,6 @@ import {
   Users, 
   Router, 
   DollarSign, 
-  UserCog, 
   Settings, 
   LogOut,
   Wifi,
@@ -32,7 +31,6 @@ const menuItems = [
   { id: 'sales', label: 'المبيعات', icon: DollarSign, roles: ['admin', 'sales', 'subs_sales'] },
   { id: 'reports', label: 'التقارير', icon: FileText, roles: ['admin'] },
   { id: 'activityLog', label: 'سجل النشاط', icon: Activity, roles: ['admin'] },
-  { id: 'staff', label: 'الموظفين', icon: UserCog, roles: ['admin'] },
   { id: 'settings', label: 'الإعدادات', icon: Settings, roles: ['admin'] },
 ];
 

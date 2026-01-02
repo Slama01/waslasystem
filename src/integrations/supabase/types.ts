@@ -284,6 +284,7 @@ export type Database = {
           package_price: number | null
           phone: string | null
           router_id: string | null
+          speed: number
           start_date: string | null
           status: string
           tenant_id: string
@@ -300,6 +301,7 @@ export type Database = {
           package_price?: number | null
           phone?: string | null
           router_id?: string | null
+          speed?: number
           start_date?: string | null
           status?: string
           tenant_id: string
@@ -316,6 +318,7 @@ export type Database = {
           package_price?: number | null
           phone?: string | null
           router_id?: string | null
+          speed?: number
           start_date?: string | null
           status?: string
           tenant_id?: string

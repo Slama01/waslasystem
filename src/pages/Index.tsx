@@ -69,7 +69,7 @@ const Index = () => {
     startDate: s.start_date || '',
     expireDate: s.end_date || '',
     type: 'monthly' as const,
-    speed: 0,
+    speed: s.speed || 0,
     status: (s.daysLeft ?? 0) < 0 ? 'expired' : (s.daysLeft ?? 0) <= 3 ? 'expiring' : 'active' as any,
     notes: s.notes || '',
     daysLeft: s.daysLeft,
@@ -123,6 +123,29 @@ const Index = () => {
     return mappedSubscribers.filter(s => s.status === 'expiring' || s.status === 'expired');
   };
 
+  // Calculate additional stats
+  const today = new Date().toISOString().split('T')[0];
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  
+  const todayRevenue = payments
+    .filter(p => p.payment_date === today)
+    .reduce((acc, p) => acc + p.amount, 0) +
+    sales
+      .filter(s => s.created_at.startsWith(today))
+      .reduce((acc, s) => acc + s.amount, 0);
+
+  const newSubscribersThisMonth = subscribers.filter(s => 
+    s.created_at.startsWith(currentMonth)
+  ).length;
+
+  const expiredThisMonth = subscribers.filter(s => 
+    s.end_date && s.end_date.startsWith(currentMonth) && (s.daysLeft ?? 0) < 0
+  ).length;
+
+  const averageSpeed = subscribers.length > 0 
+    ? Math.round(subscribers.reduce((acc, s) => acc + (s.speed || 0), 0) / subscribers.length)
+    : 0;
+
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
@@ -132,11 +155,11 @@ const Index = () => {
               ...stats,
               stoppedSubscribers: 0,
               indebtedSubscribers: 0,
-              totalSales: sales.length,
-              todayRevenue: 0,
-              newSubscribersThisMonth: 0,
-              expiredThisMonth: 0,
-              averageSpeed: 0,
+              totalSales: sales.reduce((acc, s) => acc + (s.count || 1), 0),
+              todayRevenue,
+              newSubscribersThisMonth,
+              expiredThisMonth,
+              averageSpeed,
             }} 
             subscribers={mappedSubscribers} 
             sales={mappedSales} 
@@ -155,6 +178,7 @@ const Index = () => {
                 phone: sub.phone,
                 start_date: sub.startDate,
                 end_date: sub.expireDate,
+                speed: sub.speed,
                 notes: sub.notes,
                 package_price: payment || 0,
               });
@@ -164,6 +188,7 @@ const Index = () => {
                 name: data.name,
                 phone: data.phone,
                 end_date: data.expireDate,
+                speed: data.speed,
                 notes: data.notes,
               });
             }}
@@ -222,11 +247,11 @@ const Index = () => {
               ...stats,
               stoppedSubscribers: 0,
               indebtedSubscribers: 0,
-              totalSales: sales.length,
-              todayRevenue: 0,
-              newSubscribersThisMonth: 0,
-              expiredThisMonth: 0,
-              averageSpeed: 0,
+              totalSales: sales.reduce((acc, s) => acc + (s.count || 1), 0),
+              todayRevenue,
+              newSubscribersThisMonth,
+              expiredThisMonth,
+              averageSpeed,
             }} 
           />
         );
@@ -239,11 +264,11 @@ const Index = () => {
               ...stats,
               stoppedSubscribers: 0,
               indebtedSubscribers: 0,
-              totalSales: sales.length,
-              todayRevenue: 0,
-              newSubscribersThisMonth: 0,
-              expiredThisMonth: 0,
-              averageSpeed: 0,
+              totalSales: sales.reduce((acc, s) => acc + (s.count || 1), 0),
+              todayRevenue,
+              newSubscribersThisMonth,
+              expiredThisMonth,
+              averageSpeed,
             }} 
             subscribers={mappedSubscribers} 
             sales={mappedSales} 

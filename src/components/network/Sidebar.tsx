@@ -10,7 +10,8 @@ import {
   FileText,
   Activity,
   Menu,
-  X
+  X,
+  Package
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Staff } from '@/types/network';
@@ -27,6 +28,7 @@ interface SidebarProps {
 const menuItems = [
   { id: 'dashboard', label: 'لوحة التحكم', icon: LayoutDashboard, roles: ['admin', 'subs', 'sales', 'routers', 'subs_sales'] },
   { id: 'subscribers', label: 'المشتركين', icon: Users, roles: ['admin', 'subs', 'subs_sales'] },
+  { id: 'packages', label: 'الباقات', icon: Package, roles: ['admin'] },
   { id: 'routers', label: 'الراوترات', icon: Router, roles: ['admin', 'routers'] },
   { id: 'sales', label: 'المبيعات', icon: DollarSign, roles: ['admin', 'sales', 'subs_sales'] },
   { id: 'reports', label: 'التقارير', icon: FileText, roles: ['admin'] },

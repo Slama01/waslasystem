@@ -11,6 +11,7 @@ export interface Subscriber {
   router_id: string | null;
   package_name: string | null;
   package_price: number;
+  speed: number;
   status: string;
   start_date: string | null;
   end_date: string | null;
@@ -110,6 +111,7 @@ export function useTenantData() {
         setSubscribers(subsRes.data.map(s => ({
           ...s,
           package_price: Number(s.package_price) || 0,
+          speed: s.speed || 0,
           daysLeft: getDaysLeft(s.end_date),
         })));
       }
@@ -166,6 +168,7 @@ export function useTenantData() {
         address: data.address,
         package_name: data.package_name,
         package_price: data.package_price || 0,
+        speed: data.speed || 0,
         status: 'active',
         start_date: data.start_date,
         end_date: data.end_date,

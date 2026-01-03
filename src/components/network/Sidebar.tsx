@@ -11,7 +11,8 @@ import {
   Activity,
   Menu,
   X,
-  Package
+  Package,
+  Building2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Staff } from '@/types/network';
@@ -23,6 +24,7 @@ interface SidebarProps {
   onPageChange: (page: string) => void;
   currentUser: Staff;
   onLogout: () => void;
+  isSuperAdmin?: boolean;
 }
 
 const menuItems = [
@@ -41,9 +43,15 @@ const SidebarContent = ({
   onPageChange, 
   currentUser, 
   onLogout,
-  onItemClick 
+  onItemClick,
+  isSuperAdmin
 }: SidebarProps & { onItemClick?: () => void }) => {
-  const filteredMenu = menuItems.filter(item => item.roles.includes(currentUser.role));
+  // Add tenants page for super admins
+  const superAdminItems = isSuperAdmin ? [
+    { id: 'tenants', label: 'أصحاب الشبكات', icon: Building2, roles: ['admin', 'subs', 'sales', 'routers', 'subs_sales'] },
+  ] : [];
+
+  const filteredMenu = [...menuItems, ...superAdminItems].filter(item => item.roles.includes(currentUser.role));
 
   const handlePageChange = (page: string) => {
     onPageChange(page);
@@ -121,7 +129,7 @@ const SidebarContent = ({
   );
 };
 
-export const Sidebar = ({ currentPage, onPageChange, currentUser, onLogout }: SidebarProps) => {
+export const Sidebar = ({ currentPage, onPageChange, currentUser, onLogout, isSuperAdmin }: SidebarProps) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -144,6 +152,7 @@ export const Sidebar = ({ currentPage, onPageChange, currentUser, onLogout }: Si
             currentUser={currentUser}
             onLogout={onLogout}
             onItemClick={() => setIsOpen(false)}
+            isSuperAdmin={isSuperAdmin}
           />
         </SheetContent>
       </Sheet>
@@ -155,6 +164,7 @@ export const Sidebar = ({ currentPage, onPageChange, currentUser, onLogout }: Si
           onPageChange={onPageChange}
           currentUser={currentUser}
           onLogout={onLogout}
+          isSuperAdmin={isSuperAdmin}
         />
       </aside>
     </>

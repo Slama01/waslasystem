@@ -388,6 +388,24 @@ export type Database = {
           },
         ]
       }
+      super_admins: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tenants: {
         Row: {
           address: string | null
@@ -482,9 +500,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_first_user: { Args: never; Returns: boolean }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "owner" | "admin" | "staff"
+      app_role: "owner" | "admin" | "staff" | "super_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -612,7 +632,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["owner", "admin", "staff"],
+      app_role: ["owner", "admin", "staff", "super_admin"],
     },
   },
 } as const

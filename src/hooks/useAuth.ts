@@ -12,7 +12,7 @@ interface Profile {
 }
 
 interface UserRole {
-  role: 'owner' | 'admin' | 'staff';
+  role: 'owner' | 'admin' | 'staff' | 'super_admin';
   tenant_id: string;
 }
 
@@ -31,6 +31,7 @@ export function useAuth() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -49,6 +50,7 @@ export function useAuth() {
           setProfile(null);
           setUserRole(null);
           setTenant(null);
+          setIsSuperAdmin(false);
           setIsLoading(false);
         }
       }
@@ -93,6 +95,15 @@ export function useAuth() {
           setUserRole(roleData as UserRole);
         }
 
+        // Check if super admin
+        const { data: superAdminData } = await supabase
+          .from('super_admins')
+          .select('id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        
+        setIsSuperAdmin(!!superAdminData);
+
         // Fetch tenant
         if (profileData.tenant_id) {
           const { data: tenantData } = await supabase
@@ -128,6 +139,7 @@ export function useAuth() {
     profile,
     userRole,
     tenant,
+    isSuperAdmin,
     isLoading,
     signOut,
     isOwner: userRole?.role === 'owner',

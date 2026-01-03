@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNetworkData } from '@/hooks/useNetworkData';
+import { useAuth } from '@/hooks/useAuth';
 import { LoginPage } from './LoginPage';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
@@ -12,6 +13,7 @@ import { SettingsPage } from './SettingsPage';
 import { ReportsPage } from './ReportsPage';
 import { ActivityLogPage } from './ActivityLogPage';
 import { PackagesPage } from './PackagesPage';
+import { TenantsManagementPage } from './TenantsManagementPage';
 import { TrialExpiryAlert } from './TrialExpiryAlert';
 
 const pageTitles: Record<string, string> = {
@@ -24,10 +26,12 @@ const pageTitles: Record<string, string> = {
   settings: 'الإعدادات',
   reports: 'التقارير الشهرية',
   activityLog: 'سجل النشاط',
+  tenants: 'إدارة أصحاب الشبكات',
 };
 
 export const NetworkApp = () => {
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const { isSuperAdmin } = useAuth();
   const {
     subscribers,
     routers,
@@ -90,6 +94,8 @@ export const NetworkApp = () => {
         return <ReportsPage subscribers={subscribers} payments={payments} sales={sales} stats={stats} />;
       case 'activityLog':
         return <ActivityLogPage activityLog={activityLog} />;
+      case 'tenants':
+        return <TenantsManagementPage />;
       default:
         return <Dashboard stats={stats} subscribers={subscribers} sales={sales} payments={payments} alerts={getAlerts()} />;
     }
@@ -102,6 +108,7 @@ export const NetworkApp = () => {
         onPageChange={setCurrentPage} 
         currentUser={currentUser}
         onLogout={logout}
+        isSuperAdmin={isSuperAdmin}
       />
       
       <main className="lg:mr-64">

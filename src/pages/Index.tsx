@@ -10,7 +10,7 @@ import { SalesPage } from '@/components/network/SalesPage';
 import { SettingsPage } from '@/components/network/SettingsPage';
 import { ReportsPage } from '@/components/network/ReportsPage';
 import { ActivityLogPage } from '@/components/network/ActivityLogPage';
-import { TenantsManagementPage } from '@/components/network/TenantsManagementPage';
+import { SuperAdminLayout } from '@/components/network/SuperAdminLayout';
 import { Loader2 } from 'lucide-react';
 
 const pageTitles: Record<string, string> = {
@@ -21,7 +21,6 @@ const pageTitles: Record<string, string> = {
   settings: 'الإعدادات',
   reports: 'التقارير الشهرية',
   activityLog: 'سجل النشاط',
-  tenants: 'إدارة أصحاب الشبكات',
 };
 
 const Index = () => {
@@ -43,6 +42,11 @@ const Index = () => {
     deleteRouter,
     addSale,
   } = useTenantData();
+
+  // If super admin, show dedicated layout
+  if (isSuperAdmin) {
+    return <SuperAdminLayout />;
+  }
 
   if (isLoading) {
     return (
@@ -259,12 +263,6 @@ const Index = () => {
         );
       case 'activityLog':
         return <ActivityLogPage activityLog={mappedActivityLog} />;
-      case 'tenants':
-        return isSuperAdmin ? (
-          <TenantsManagementPage />
-        ) : (
-          <div className="text-muted-foreground">ليس لديك صلاحية لعرض هذه الصفحة.</div>
-        );
       default:
         return (
           <Dashboard 
@@ -294,7 +292,6 @@ const Index = () => {
         onPageChange={setCurrentPage} 
         currentUser={currentUser as any}
         onLogout={signOut}
-        isSuperAdmin={isSuperAdmin}
       />
       
       <main className="lg:mr-64">

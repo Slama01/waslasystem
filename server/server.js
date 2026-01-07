@@ -3,12 +3,119 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
+
+// Try to use bcryptjs for password hashing, fallback to crypto if not available
+let bcrypt;
+try {
+  bcrypt = require('bcryptjs');
+} catch (e) {
+  bcrypt = null;
+  console.warn('bcryptjs not installed. Run: npm install bcryptjs');
+}
 
 const app = express();
 const PORT = 3001;
 
+// Session tokens storage (in-memory for simplicity)
+const sessions = new Map();
+const SESSION_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 app.use(cors());
 app.use(express.json());
+
+// ==================== PASSWORD HASHING ====================
+function hashPassword(password) {
+  if (bcrypt) {
+    return bcrypt.hashSync(password, 10);
+  }
+  // Fallback: SHA256 with salt (less secure than bcrypt, but better than plaintext)
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.createHash('sha256').update(password + salt).digest('hex');
+  return `sha256:${salt}:${hash}`;
+}
+
+function verifyPassword(password, storedHash) {
+  if (!storedHash) return false;
+  
+  // Check if it's a legacy plaintext password (for migration)
+  if (!storedHash.startsWith('$2') && !storedHash.startsWith('sha256:')) {
+    // Legacy plaintext - compare directly but should be migrated
+    return password === storedHash;
+  }
+  
+  if (bcrypt && storedHash.startsWith('$2')) {
+    return bcrypt.compareSync(password, storedHash);
+  }
+  
+  if (storedHash.startsWith('sha256:')) {
+    const [, salt, hash] = storedHash.split(':');
+    const testHash = crypto.createHash('sha256').update(password + salt).digest('hex');
+    return testHash === hash;
+  }
+  
+  return false;
+}
+
+// ==================== SESSION MANAGEMENT ====================
+function generateSessionToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function createSession(userId, userRole) {
+  const token = generateSessionToken();
+  sessions.set(token, {
+    userId,
+    userRole,
+    createdAt: Date.now(),
+  });
+  return token;
+}
+
+function validateSession(token) {
+  if (!token) return null;
+  
+  const session = sessions.get(token);
+  if (!session) return null;
+  
+  // Check if session expired
+  if (Date.now() - session.createdAt > SESSION_EXPIRY_MS) {
+    sessions.delete(token);
+    return null;
+  }
+  
+  return session;
+}
+
+function destroySession(token) {
+  sessions.delete(token);
+}
+
+// ==================== AUTH MIDDLEWARE ====================
+function authMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'غير مصرح - يرجى تسجيل الدخول' });
+  }
+  
+  const token = authHeader.substring(7);
+  const session = validateSession(token);
+  
+  if (!session) {
+    return res.status(401).json({ error: 'انتهت الجلسة - يرجى تسجيل الدخول مجدداً' });
+  }
+  
+  req.session = session;
+  next();
+}
+
+function adminMiddleware(req, res, next) {
+  if (!req.session || req.session.userRole !== 'admin') {
+    return res.status(403).json({ error: 'غير مصرح - صلاحيات المدير مطلوبة' });
+  }
+  next();
+}
 
 // صفحة بسيطة للتأكد أن الخادم يعمل (بدلاً من "Cannot GET /")
 app.get('/', (req, res) => {
@@ -102,32 +209,92 @@ function logActivity({ action, entityType, entityName, details, userId, userName
   return entry;
 }
 
-// Ensure default admin
+// Ensure default admin with hashed password
 (function ensureAdmin() {
   const db = readDB();
   const admin = db.staff.find((s) => s.username === 'admin');
   if (!admin) {
+    const hashedPassword = hashPassword('admin123');
     db.staff.push({
       id: 'admin-1',
       name: 'المدير',
       username: 'admin',
-      password: 'admin123',
+      password: hashedPassword,
       role: 'admin',
       permissions: ['all'],
       createdAt: nowIso(),
     });
     writeDB(db);
     console.log('Default admin created: username=admin, password=admin123');
+  } else if (!admin.password.startsWith('$2') && !admin.password.startsWith('sha256:')) {
+    // Migrate legacy plaintext password to hashed
+    const idx = db.staff.findIndex((s) => s.username === 'admin');
+    if (idx !== -1) {
+      db.staff[idx].password = hashPassword(admin.password);
+      writeDB(db);
+      console.log('Admin password migrated to hashed format');
+    }
   }
 })();
 
-// Health check (for connection test)
+// Health check (for connection test) - no auth required
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, time: nowIso() });
 });
 
+// ==================== AUTH (Public Routes) ====================
+app.post('/api/login', (req, res) => {
+  try {
+    const db = readDB();
+    const { username, password } = req.body || {};
+    
+    if (!username || !password) {
+      return res.status(400).json({ error: 'اسم المستخدم وكلمة المرور مطلوبة' });
+    }
+    
+    const user = db.staff.find((s) => s.username === username);
+    
+    if (!user || !verifyPassword(password, user.password)) {
+      return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+    }
+    
+    // Migrate plaintext password on successful login
+    if (!user.password.startsWith('$2') && !user.password.startsWith('sha256:')) {
+      const idx = db.staff.findIndex((s) => s.id === user.id);
+      if (idx !== -1) {
+        db.staff[idx].password = hashPassword(password);
+        writeDB(db);
+      }
+    }
+    
+    const token = createSession(user.id, user.role);
+    
+    res.json({
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      role: user.role,
+      permissions: Array.isArray(user.permissions) ? user.permissions : [],
+      token,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/logout', (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    destroySession(token);
+  }
+  res.json({ success: true });
+});
+
+// ==================== PROTECTED ROUTES ====================
+
 // ==================== SUBSCRIBERS ====================
-app.get('/api/subscribers', (req, res) => {
+app.get('/api/subscribers', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     const items = [...db.subscribers].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
@@ -137,7 +304,7 @@ app.get('/api/subscribers', (req, res) => {
   }
 });
 
-app.post('/api/subscribers', (req, res) => {
+app.post('/api/subscribers', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     const body = req.body || {};
@@ -166,7 +333,7 @@ app.post('/api/subscribers', (req, res) => {
   }
 });
 
-app.put('/api/subscribers/:id', (req, res) => {
+app.put('/api/subscribers/:id', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     const idx = db.subscribers.findIndex((s) => s.id === req.params.id);
@@ -185,7 +352,7 @@ app.put('/api/subscribers/:id', (req, res) => {
   }
 });
 
-app.delete('/api/subscribers/:id', (req, res) => {
+app.delete('/api/subscribers/:id', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     db.subscribers = db.subscribers.filter((s) => s.id !== req.params.id);
@@ -197,7 +364,7 @@ app.delete('/api/subscribers/:id', (req, res) => {
 });
 
 // ==================== ROUTERS ====================
-app.get('/api/routers', (req, res) => {
+app.get('/api/routers', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     const items = [...db.routers].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
@@ -207,7 +374,7 @@ app.get('/api/routers', (req, res) => {
   }
 });
 
-app.post('/api/routers', (req, res) => {
+app.post('/api/routers', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     const body = req.body || {};
@@ -233,7 +400,7 @@ app.post('/api/routers', (req, res) => {
   }
 });
 
-app.put('/api/routers/:id', (req, res) => {
+app.put('/api/routers/:id', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     const idx = db.routers.findIndex((r) => r.id === req.params.id);
@@ -252,7 +419,7 @@ app.put('/api/routers/:id', (req, res) => {
   }
 });
 
-app.delete('/api/routers/:id', (req, res) => {
+app.delete('/api/routers/:id', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     db.routers = db.routers.filter((r) => r.id !== req.params.id);
@@ -264,7 +431,7 @@ app.delete('/api/routers/:id', (req, res) => {
 });
 
 // ==================== SALES ====================
-app.get('/api/sales', (req, res) => {
+app.get('/api/sales', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     const items = [...db.sales].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -274,7 +441,7 @@ app.get('/api/sales', (req, res) => {
   }
 });
 
-app.post('/api/sales', (req, res) => {
+app.post('/api/sales', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     const body = req.body || {};
@@ -297,7 +464,7 @@ app.post('/api/sales', (req, res) => {
   }
 });
 
-app.put('/api/sales/:id', (req, res) => {
+app.put('/api/sales/:id', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     const idx = db.sales.findIndex((s) => s.id === req.params.id);
@@ -316,7 +483,7 @@ app.put('/api/sales/:id', (req, res) => {
   }
 });
 
-app.delete('/api/sales/:id', (req, res) => {
+app.delete('/api/sales/:id', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     db.sales = db.sales.filter((s) => s.id !== req.params.id);
@@ -328,7 +495,7 @@ app.delete('/api/sales/:id', (req, res) => {
 });
 
 // ==================== STAFF ====================
-app.get('/api/staff', (req, res) => {
+app.get('/api/staff', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     const staff = [...db.staff]
@@ -348,7 +515,7 @@ app.get('/api/staff', (req, res) => {
   }
 });
 
-app.post('/api/staff', (req, res) => {
+app.post('/api/staff', authMiddleware, adminMiddleware, (req, res) => {
   try {
     const db = readDB();
     const body = req.body || {};
@@ -365,7 +532,7 @@ app.post('/api/staff', (req, res) => {
       id: body.id || generateId('staff'),
       name: body.name,
       username: body.username,
-      password: body.password,
+      password: hashPassword(body.password),
       role: body.role || 'staff',
       permissions: Array.isArray(body.permissions) ? body.permissions : [],
       createdAt: nowIso(),
@@ -387,7 +554,7 @@ app.post('/api/staff', (req, res) => {
   }
 });
 
-app.delete('/api/staff/:id', (req, res) => {
+app.delete('/api/staff/:id', authMiddleware, adminMiddleware, (req, res) => {
   try {
     const db = readDB();
     db.staff = db.staff.filter((s) => s.id !== req.params.id);
@@ -398,36 +565,19 @@ app.delete('/api/staff/:id', (req, res) => {
   }
 });
 
-// ==================== AUTH ====================
-app.post('/api/login', (req, res) => {
-  try {
-    const db = readDB();
-    const { username, password } = req.body || {};
-    const user = db.staff.find((s) => s.username === username && s.password === password);
-
-    if (!user) return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
-
-    res.json({
-      id: user.id,
-      name: user.name,
-      username: user.username,
-      role: user.role,
-      permissions: Array.isArray(user.permissions) ? user.permissions : [],
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.put('/api/change-password', (req, res) => {
+// ==================== CHANGE PASSWORD ====================
+app.put('/api/change-password', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     const { userId, oldPassword, newPassword } = req.body || {};
 
-    const idx = db.staff.findIndex((s) => s.id === userId && s.password === oldPassword);
-    if (idx === -1) return res.status(401).json({ error: 'كلمة المرور الحالية غير صحيحة' });
+    const user = db.staff.find((s) => s.id === userId);
+    if (!user || !verifyPassword(oldPassword, user.password)) {
+      return res.status(401).json({ error: 'كلمة المرور الحالية غير صحيحة' });
+    }
 
-    db.staff[idx].password = newPassword;
+    const idx = db.staff.findIndex((s) => s.id === userId);
+    db.staff[idx].password = hashPassword(newPassword);
     writeDB(db);
     res.json({ success: true });
   } catch (error) {
@@ -436,7 +586,7 @@ app.put('/api/change-password', (req, res) => {
 });
 
 // ==================== PAYMENTS ====================
-app.get('/api/payments', (req, res) => {
+app.get('/api/payments', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     const items = [...db.payments].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -446,7 +596,7 @@ app.get('/api/payments', (req, res) => {
   }
 });
 
-app.get('/api/payments/:subscriberId', (req, res) => {
+app.get('/api/payments/:subscriberId', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     const items = db.payments
@@ -458,7 +608,7 @@ app.get('/api/payments/:subscriberId', (req, res) => {
   }
 });
 
-app.post('/api/payments', (req, res) => {
+app.post('/api/payments', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     const body = req.body || {};
@@ -480,7 +630,7 @@ app.post('/api/payments', (req, res) => {
 });
 
 // ==================== ACTIVITY LOG ====================
-app.get('/api/activity-log', (req, res) => {
+app.get('/api/activity-log', authMiddleware, (req, res) => {
   try {
     const db = readDB();
     res.json((db.activity_log || []).slice(0, 100));
@@ -489,7 +639,7 @@ app.get('/api/activity-log', (req, res) => {
   }
 });
 
-app.post('/api/activity-log', (req, res) => {
+app.post('/api/activity-log', authMiddleware, (req, res) => {
   try {
     const entry = logActivity(req.body || {});
     res.json(entry);
@@ -498,20 +648,31 @@ app.post('/api/activity-log', (req, res) => {
   }
 });
 
-// Backup / Restore helpers
-app.get('/api/backup', (req, res) => {
+// Backup / Restore helpers - ADMIN ONLY
+app.get('/api/backup', authMiddleware, adminMiddleware, (req, res) => {
   try {
     const db = readDB();
-    res.json({ ok: true, db });
+    // Don't expose passwords in backup
+    const safeDb = {
+      ...db,
+      staff: db.staff.map(s => ({ ...s, password: '[HIDDEN]' })),
+    };
+    res.json({ ok: true, db: safeDb });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/restore', (req, res) => {
+app.post('/api/restore', authMiddleware, adminMiddleware, (req, res) => {
   try {
-    const db = ensureDbShape((req.body && req.body.db) || {});
-    writeDB(db);
+    const inputDb = (req.body && req.body.db) || {};
+    const currentDb = readDB();
+    
+    // Preserve staff with hashed passwords from current DB
+    const restoredDb = ensureDbShape(inputDb);
+    restoredDb.staff = currentDb.staff;
+    
+    writeDB(restoredDb);
     res.json({ ok: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -531,7 +692,11 @@ function getLocalIPs() {
   return ips;
 }
 
-app.listen(PORT, '0.0.0.0', () => {
+// Bind to localhost by default for security
+// Use 0.0.0.0 only if LOCAL_SERVER_NETWORK=true environment variable is set
+const BIND_ADDRESS = process.env.LOCAL_SERVER_NETWORK === 'true' ? '0.0.0.0' : '127.0.0.1';
+
+app.listen(PORT, BIND_ADDRESS, () => {
   console.log('\n========================================');
   console.log('   نظام وصلة - الخادم المحلي');
   console.log('========================================');
@@ -539,10 +704,15 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('\n📡 روابط الوصول:');
   console.log(`   - محلي: http://localhost:${PORT}`);
 
-  const localIPs = getLocalIPs();
-  localIPs.forEach((ip) => console.log(`   - شبكة: http://${ip}:${PORT}`));
-
-  console.log('\n📱 للوصول من الجوال، استخدم رابط الشبكة');
+  if (BIND_ADDRESS === '0.0.0.0') {
+    const localIPs = getLocalIPs();
+    localIPs.forEach((ip) => console.log(`   - شبكة: http://${ip}:${PORT}`));
+    console.log('\n📱 للوصول من الجوال، استخدم رابط الشبكة');
+    console.log('⚠️ تحذير: الخادم متاح على الشبكة المحلية');
+  } else {
+    console.log('\n🔒 الخادم يعمل على localhost فقط (آمن)');
+    console.log('   لتفعيل الوصول من الشبكة: LOCAL_SERVER_NETWORK=true npm start');
+  }
+  
   console.log('========================================\n');
 });
-

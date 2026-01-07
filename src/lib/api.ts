@@ -22,18 +22,47 @@ export const getApiUrl = () => {
   return API_BASE_URL;
 };
 
-// Generic fetch wrapper with error handling
-async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
+// Session token management
+export const getAuthToken = () => {
+  return localStorage.getItem('localServerToken');
+};
+
+export const setAuthToken = (token: string) => {
+  localStorage.setItem('localServerToken', token);
+};
+
+export const clearAuthToken = () => {
+  localStorage.removeItem('localServerToken');
+};
+
+// Generic fetch wrapper with error handling and auth
+async function apiFetch<T>(endpoint: string, options?: RequestInit, requiresAuth = true): Promise<T> {
   const url = `${getApiUrl()}${endpoint}`;
+  
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...options?.headers,
+  };
+  
+  // Add auth token if available and required
+  if (requiresAuth) {
+    const token = getAuthToken();
+    if (token) {
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+    }
+  }
   
   try {
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      headers,
     });
+
+    if (response.status === 401) {
+      // Clear token and throw auth error
+      clearAuthToken();
+      throw new Error('انتهت الجلسة - يرجى تسجيل الدخول مجدداً');
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'حدث خطأ في الاتصال' }));
@@ -82,8 +111,26 @@ export const staffApi = {
 
 // Auth API
 export const authApi = {
-  login: (username: string, password: string) => 
-    apiFetch<any>('/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  login: async (username: string, password: string) => {
+    const result = await apiFetch<any>('/login', { 
+      method: 'POST', 
+      body: JSON.stringify({ username, password }) 
+    }, false);
+    
+    // Store token on successful login
+    if (result.token) {
+      setAuthToken(result.token);
+    }
+    
+    return result;
+  },
+  logout: async () => {
+    try {
+      await apiFetch<any>('/logout', { method: 'POST' });
+    } finally {
+      clearAuthToken();
+    }
+  },
   changePassword: (userId: string, oldPassword: string, newPassword: string) =>
     apiFetch<any>('/change-password', { method: 'PUT', body: JSON.stringify({ userId, oldPassword, newPassword }) }),
 };
@@ -99,6 +146,12 @@ export const paymentsApi = {
 export const activityLogApi = {
   getAll: () => apiFetch<any[]>('/activity-log'),
   create: (data: any) => apiFetch<any>('/activity-log', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// Backup/Restore API (Admin only)
+export const backupApi = {
+  backup: () => apiFetch<any>('/backup'),
+  restore: (db: any) => apiFetch<any>('/restore', { method: 'POST', body: JSON.stringify({ db }) }),
 };
 
 // Test connection to local server

@@ -18,8 +18,10 @@ import {
   Search,
   RefreshCw,
   Settings2,
-  CalendarPlus
+  CalendarPlus,
+  Eye
 } from 'lucide-react';
+import { TenantSubscribersPage } from './TenantSubscribersPage';
 
 export const TenantsManagementPage = () => {
   const { 
@@ -36,6 +38,18 @@ export const TenantsManagementPage = () => {
   const [selectedTenant, setSelectedTenant] = useState<string | null>(null);
   const [extendDays, setExtendDays] = useState('14');
   const [subscriptionMonths, setSubscriptionMonths] = useState('1');
+  const [viewingSubscribers, setViewingSubscribers] = useState<{ id: string; name: string } | null>(null);
+
+  // If viewing a tenant's subscribers, show that page
+  if (viewingSubscribers) {
+    return (
+      <TenantSubscribersPage
+        tenantId={viewingSubscribers.id}
+        tenantName={viewingSubscribers.name}
+        onBack={() => setViewingSubscribers(null)}
+      />
+    );
+  }
 
   const filteredTenants = tenants.filter(tenant => {
     const matchesSearch = 
@@ -236,6 +250,16 @@ export const TenantsManagementPage = () => {
 
                   {/* Actions */}
                   <div className="flex flex-row lg:flex-col gap-2 p-4 lg:p-6 bg-muted/30 lg:border-r border-t lg:border-t-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 lg:flex-none gap-2"
+                      onClick={() => setViewingSubscribers({ id: tenant.id, name: tenant.name })}
+                    >
+                      <Eye className="w-4 h-4" />
+                      المشتركين
+                    </Button>
+
                     <Button
                       variant={tenant.is_active ? "destructive" : "default"}
                       size="sm"

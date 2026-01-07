@@ -4,7 +4,7 @@ import { SuperAdminSidebar } from './SuperAdminSidebar';
 import { Header } from './Header';
 import { SuperAdminDashboard } from './SuperAdminDashboard';
 import { TenantsManagementPage } from './TenantsManagementPage';
-import { SettingsPage } from './SettingsPage';
+import { SuperAdminSettingsPage } from './SuperAdminSettingsPage';
 
 const pageTitles: Record<string, string> = {
   dashboard: 'لوحة التحكم',
@@ -23,7 +23,7 @@ export const SuperAdminLayout = () => {
       case 'tenants':
         return <TenantsManagementPage />;
       case 'settings':
-        return <SettingsPage onChangePassword={async () => false} />;
+        return <SuperAdminSettingsPage />;
       default:
         return <SuperAdminDashboard />;
     }

@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Building2, 
@@ -19,9 +20,28 @@ import {
   RefreshCw,
   Settings2,
   CalendarPlus,
-  Eye
+  Eye,
+  Edit,
+  Save
 } from 'lucide-react';
 import { TenantSubscribersPage } from './TenantSubscribersPage';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+interface TenantWithOwner {
+  id: string;
+  name: string;
+  slug: string;
+  phone: string | null;
+  address: string | null;
+  is_active: boolean;
+  subscription_status: string;
+  subscription_ends_at: string | null;
+  created_at: string;
+  owner_name: string | null;
+  owner_email: string | null;
+  subscribers_count: number;
+}
 
 export const TenantsManagementPage = () => {
   const { 
@@ -39,6 +59,68 @@ export const TenantsManagementPage = () => {
   const [extendDays, setExtendDays] = useState('14');
   const [subscriptionMonths, setSubscriptionMonths] = useState('1');
   const [viewingSubscribers, setViewingSubscribers] = useState<{ id: string; name: string } | null>(null);
+  
+  // Edit tenant state
+  const [editingTenant, setEditingTenant] = useState<TenantWithOwner | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    slug: '',
+    phone: '',
+    address: '',
+    subscription_status: '',
+    subscription_ends_at: '',
+    is_active: true
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleEditTenant = (tenant: TenantWithOwner) => {
+    setEditingTenant(tenant);
+    setEditFormData({
+      name: tenant.name,
+      slug: tenant.slug,
+      phone: tenant.phone || '',
+      address: tenant.address || '',
+      subscription_status: tenant.subscription_status,
+      subscription_ends_at: tenant.subscription_ends_at ? tenant.subscription_ends_at.split('T')[0] : '',
+      is_active: tenant.is_active
+    });
+  };
+
+  const handleSaveTenant = async () => {
+    if (!editingTenant) return;
+
+    if (!editFormData.name.trim()) {
+      toast.error('الرجاء إدخال اسم الشركة');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('tenants')
+        .update({
+          name: editFormData.name.trim(),
+          slug: editFormData.slug.trim(),
+          phone: editFormData.phone.trim() || null,
+          address: editFormData.address.trim() || null,
+          subscription_status: editFormData.subscription_status,
+          subscription_ends_at: editFormData.subscription_ends_at || null,
+          is_active: editFormData.is_active
+        })
+        .eq('id', editingTenant.id);
+
+      if (error) throw error;
+
+      toast.success('تم تحديث بيانات الشبكة بنجاح');
+      setEditingTenant(null);
+      refreshTenants();
+    } catch (error) {
+      console.error('Error updating tenant:', error);
+      toast.error('حدث خطأ أثناء تحديث البيانات');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // If viewing a tenant's subscribers, show that page
   if (viewingSubscribers) {
@@ -254,6 +336,16 @@ export const TenantsManagementPage = () => {
                       variant="outline"
                       size="sm"
                       className="flex-1 lg:flex-none gap-2"
+                      onClick={() => handleEditTenant(tenant)}
+                    >
+                      <Edit className="w-4 h-4" />
+                      تعديل
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 lg:flex-none gap-2"
                       onClick={() => setViewingSubscribers({ id: tenant.id, name: tenant.name })}
                     >
                       <Eye className="w-4 h-4" />
@@ -357,6 +449,98 @@ export const TenantsManagementPage = () => {
           ))
         )}
       </div>
+
+      {/* Edit Tenant Dialog */}
+      <Dialog open={!!editingTenant} onOpenChange={(open) => !open && setEditingTenant(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>تعديل بيانات الشبكة</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            <div className="space-y-2">
+              <Label>اسم الشركة</Label>
+              <Input
+                value={editFormData.name}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="اسم الشركة"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>المعرف (Slug)</Label>
+              <Input
+                value={editFormData.slug}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, slug: e.target.value }))}
+                placeholder="company-name"
+                dir="ltr"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>رقم الهاتف</Label>
+              <Input
+                value={editFormData.phone}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder="رقم الهاتف"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>العنوان</Label>
+              <Input
+                value={editFormData.address}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, address: e.target.value }))}
+                placeholder="العنوان"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>حالة الاشتراك</Label>
+              <Select 
+                value={editFormData.subscription_status} 
+                onValueChange={(value) => setEditFormData(prev => ({ ...prev, subscription_status: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="trial">تجريبي</SelectItem>
+                  <SelectItem value="active">نشط</SelectItem>
+                  <SelectItem value="expired">منتهي</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>تاريخ انتهاء الاشتراك</Label>
+              <Input
+                type="date"
+                value={editFormData.subscription_ends_at}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, subscription_ends_at: e.target.value }))}
+                dir="ltr"
+              />
+            </div>
+
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+              <input
+                type="checkbox"
+                id="is_active"
+                checked={editFormData.is_active}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, is_active: e.target.checked }))}
+                className="w-4 h-4"
+              />
+              <Label htmlFor="is_active" className="cursor-pointer">الحساب نشط</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingTenant(null)}>إلغاء</Button>
+            <Button onClick={handleSaveTenant} disabled={isSaving}>
+              <Save className="w-4 h-4 ml-1" />
+              {isSaving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

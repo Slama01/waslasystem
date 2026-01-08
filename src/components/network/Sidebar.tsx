@@ -6,13 +6,13 @@ import {
   DollarSign, 
   Settings, 
   LogOut,
-  Wifi,
   FileText,
   Activity,
   Menu,
   X,
   Building2
 } from 'lucide-react';
+import wifiLogo from '@/assets/wifi-logo.png';
 import { cn } from '@/lib/utils';
 import { Staff } from '@/types/network';
 import { Button } from '@/components/ui/button';
@@ -61,9 +61,11 @@ const SidebarContent = ({
       {/* Logo */}
       <div className="p-4 lg:p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 lg:w-12 lg:h-12 gradient-primary rounded-xl flex items-center justify-center">
-            <Wifi className="w-5 h-5 lg:w-7 lg:h-7 text-primary-foreground" />
-          </div>
+          <img 
+            src={wifiLogo} 
+            alt="وصلة" 
+            className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl object-contain"
+          />
           <div>
             <h1 className="text-lg lg:text-xl font-bold">وصلة</h1>
             <p className="text-xs text-sidebar-foreground/60">إدارة الشبكات</p>

@@ -12,7 +12,7 @@ import {
   X,
   Building2
 } from 'lucide-react';
-import wifiLogo from '@/assets/wifi-logo.png';
+import { Wifi as WifiIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Staff } from '@/types/network';
 import { Button } from '@/components/ui/button';
@@ -61,11 +61,9 @@ const SidebarContent = ({
       {/* Logo */}
       <div className="p-4 lg:p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <img 
-            src={wifiLogo} 
-            alt="وصلة" 
-            className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl object-contain"
-          />
+          <div className="w-10 h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center shadow-lg">
+            <WifiIcon className="w-6 h-6 lg:w-7 lg:h-7 text-primary-foreground" />
+          </div>
           <div>
             <h1 className="text-lg lg:text-xl font-bold">وصلة</h1>
             <p className="text-xs text-sidebar-foreground/60">إدارة الشبكات</p>

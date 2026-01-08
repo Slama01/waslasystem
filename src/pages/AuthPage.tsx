@@ -375,6 +375,26 @@ export default function AuthPage() {
           </div>
         </section>
 
+        {/* WhatsApp Contact */}
+        <section className="py-12 bg-gradient-to-l from-green-500/10 to-green-600/10">
+          <div className="container mx-auto px-4 text-center">
+            <div className="max-w-xl mx-auto space-y-4">
+              <h2 className="text-2xl font-bold text-foreground">تواصل معنا</h2>
+              <p className="text-muted-foreground">
+                للحصول على نسخة من البرنامج أو الدعم الفني
+              </p>
+              <Button 
+                size="lg" 
+                onClick={() => window.open('https://wa.me/970599489999', '_blank')}
+                className="bg-green-500 hover:bg-green-600 text-white text-lg px-8 py-6"
+              >
+                <span>تواصل عبر واتساب</span>
+                <span className="mr-2" dir="ltr">+970 599 489 999</span>
+              </Button>
+            </div>
+          </div>
+        </section>
+
         {/* Footer */}
         <footer className="py-8 bg-card border-t border-border">
           <div className="container mx-auto px-4">

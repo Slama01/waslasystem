@@ -345,6 +345,38 @@ export function useTenantData() {
     return newPayment;
   };
 
+  const getSubscriberPayments = (subscriberId: string) => {
+    return payments.filter(p => p.subscriber_id === subscriberId);
+  };
+
+  const extendSubscription = async (subscriberId: string, days: number = 30, amount: number) => {
+    const sub = subscribers.find(s => s.id === subscriberId);
+    if (!sub) {
+      toast({ title: 'خطأ', description: 'لم يتم العثور على المشترك', variant: 'destructive' });
+      return;
+    }
+
+    const base = sub.end_date ? new Date(sub.end_date) : new Date();
+    const safeBase = isNaN(base.getTime()) ? new Date() : base;
+
+    const newEnd = new Date(safeBase);
+    newEnd.setDate(newEnd.getDate() + days);
+    const newEndDate = newEnd.toISOString().split('T')[0];
+
+    await updateSubscriber(subscriberId, { end_date: newEndDate, status: 'active' });
+
+    if (amount > 0) {
+      await addPayment({
+        subscriber_id: subscriberId,
+        amount,
+        notes: `تمديد ${days} يوم`,
+      });
+    }
+
+    await logActivity('extend', 'subscriber', subscriberId, { days, amount, newEndDate });
+    await loadData();
+  };
+
   // Calculate stats
   const today = new Date().toISOString().split('T')[0];
   const currentMonth = new Date().toISOString().slice(0, 7);
@@ -372,20 +404,22 @@ export function useTenantData() {
     stats,
     tenant,
     profile,
-    
+
     // Loading state
     isLoading: isLoading || authLoading,
-    
+
     // Operations
     addSubscriber,
     updateSubscriber,
     deleteSubscriber,
+    extendSubscription,
     addRouter,
     updateRouter,
     deleteRouter,
     addSale,
     addPayment,
-    
+    getSubscriberPayments,
+
     // Refresh
     refreshData: loadData,
   };

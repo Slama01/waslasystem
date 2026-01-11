@@ -37,10 +37,13 @@ const Index = () => {
     addSubscriber,
     updateSubscriber,
     deleteSubscriber,
+    extendSubscription,
     addRouter,
     updateRouter,
     deleteRouter,
     addSale,
+    addPayment,
+    getSubscriberPayments,
   } = useTenantData();
 
   // If super admin, show dedicated layout
@@ -103,16 +106,19 @@ const Index = () => {
   }));
 
   // Map payments to old format
-  const mappedPayments = payments.map(p => ({
-    id: p.id,
-    subscriberId: p.subscriber_id,
-    subscriberName: subscribers.find(s => s.id === p.subscriber_id)?.name || '',
-    amount: p.amount,
-    date: p.payment_date,
-    staffName: profile?.full_name || '',
-    type: 'subscription' as const,
-    notes: p.notes || '',
-  }));
+  const mappedPayments = payments.map(p => {
+    const isExtension = (p.notes || '').includes('تمديد');
+    return {
+      id: p.id,
+      subscriberId: p.subscriber_id,
+      subscriberName: subscribers.find(s => s.id === p.subscriber_id)?.name || '',
+      amount: p.amount,
+      date: p.payment_date,
+      staffName: profile?.full_name || '',
+      type: (isExtension ? 'extension' : 'subscription') as 'extension' | 'subscription',
+      notes: p.notes || '',
+    };
+  });
 
   // Map activity log
   const mappedActivityLog = activityLog.map(a => ({
@@ -179,15 +185,22 @@ const Index = () => {
             subscribers={mappedSubscribers} 
             staff={[]}
             onAdd={async (sub, payment) => {
-              await addSubscriber({
+              const created = await addSubscriber({
                 name: sub.name,
                 phone: sub.phone,
                 start_date: sub.startDate,
                 end_date: sub.expireDate,
                 speed: sub.speed,
                 notes: sub.notes,
-                package_price: payment || 0,
               });
+
+              if (created?.id && payment && payment > 0) {
+                await addPayment({
+                  subscriber_id: created.id,
+                  amount: payment,
+                  notes: `اشتراك جديد - سرعة ${sub.speed} ميجا`,
+                });
+              }
             }} 
             onUpdate={async (id, data) => {
               await updateSubscriber(id, {
@@ -199,8 +212,20 @@ const Index = () => {
               });
             }}
             onDelete={deleteSubscriber}
-            onExtend={async () => {}}
-            getSubscriberPayments={() => []}
+            onExtend={extendSubscription}
+            getSubscriberPayments={(subscriberId) => {
+              const ps = getSubscriberPayments(subscriberId);
+              return ps.map(p => ({
+                id: p.id,
+                subscriberId: p.subscriber_id,
+                subscriberName: subscribers.find(s => s.id === p.subscriber_id)?.name || '',
+                amount: p.amount,
+                date: p.payment_date,
+                staffName: profile?.full_name || '',
+                type: (((p.notes || '').includes('تمديد') ? 'extension' : 'subscription') as 'extension' | 'subscription'),
+                notes: p.notes || '',
+              }));
+            }}
           />
         );
       case 'routers':

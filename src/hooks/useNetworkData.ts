@@ -315,6 +315,8 @@ export const useNetworkData = () => {
 
   // Subscriber operations
   const addSubscriber = useCallback(async (sub: Omit<Subscriber, 'id' | 'status' | 'daysLeft'>, initialPayment?: number) => {
+    console.log('addSubscriber called:', { sub, initialPayment });
+    
     const daysLeft = getDaysLeft(sub.expireDate);
     const newSub: Subscriber = { 
       ...sub, 
@@ -351,9 +353,14 @@ export const useNetworkData = () => {
       }
     }
 
-    const updated = [...subscribers, newSub];
-    setSubscribers(updated);
-    localStorage.setItem('subs', JSON.stringify(updated));
+    // localStorage mode
+    setSubscribers(prevSubs => {
+      const updated = [...prevSubs, newSub];
+      localStorage.setItem('subs', JSON.stringify(updated));
+      console.log('Subscriber saved to localStorage:', newSub);
+      return updated;
+    });
+    
     logActivity('add', 'subscriber', newSub.name, `تم إضافة مشترك جديد - سرعة ${sub.speed} ميجا`);
 
     // Add initial payment if provided (localStorage mode)
@@ -368,11 +375,15 @@ export const useNetworkData = () => {
         type: 'subscription',
         notes: `اشتراك جديد - سرعة ${sub.speed} ميجا`
       };
-      const updatedPayments = [...payments, newPayment];
-      setPayments(updatedPayments);
-      localStorage.setItem('payments', JSON.stringify(updatedPayments));
+      
+      setPayments(prevPayments => {
+        const updatedPayments = [...prevPayments, newPayment];
+        localStorage.setItem('payments', JSON.stringify(updatedPayments));
+        console.log('Initial payment saved:', newPayment);
+        return updatedPayments;
+      });
     }
-  }, [subscribers, payments, currentUser, logActivity, isServerMode, apiFetch, refreshData]);
+  }, [currentUser, logActivity, isServerMode, apiFetch, refreshData]);
 
   const updateSubscriber = useCallback(async (id: string, data: Partial<Subscriber>) => {
     if (isServerMode) {
@@ -441,13 +452,38 @@ export const useNetworkData = () => {
 
   // Extend subscription
   const extendSubscription = useCallback(async (id: string, days: number = 30, amount: number) => {
+    console.log('extendSubscription called:', { id, days, amount });
+    
     const sub = subscribers.find(s => s.id === id);
-    if (!sub) return;
+    console.log('Found subscriber:', sub);
+    
+    if (!sub) {
+      console.error('Subscriber not found with id:', id);
+      return;
+    }
 
-    const currentExpire = new Date(sub.expireDate);
-    const newExpire = new Date(currentExpire);
+    // Handle case where expireDate might be empty or invalid
+    let baseDate = new Date();
+    if (sub.expireDate && sub.expireDate.length > 0) {
+      const parsed = new Date(sub.expireDate);
+      if (!isNaN(parsed.getTime())) {
+        // If subscriber is not expired, extend from current expire date
+        // Otherwise extend from today
+        if (parsed >= baseDate) {
+          baseDate = parsed;
+        }
+      }
+    }
+    
+    const newExpire = new Date(baseDate);
     newExpire.setDate(newExpire.getDate() + days);
     const newExpireDate = newExpire.toISOString().split('T')[0];
+    
+    console.log('Extension details:', { 
+      oldExpireDate: sub.expireDate, 
+      newExpireDate, 
+      daysAdded: days 
+    });
 
     if (isServerMode) {
       try {
@@ -459,14 +495,16 @@ export const useNetworkData = () => {
           }),
         });
 
-        await apiFetch('/payments', {
-          method: 'POST',
-          body: JSON.stringify({
-            subscriberId: id,
-            amount,
-            notes: `تمديد ${days} يوم`,
-          }),
-        });
+        if (amount > 0) {
+          await apiFetch('/payments', {
+            method: 'POST',
+            body: JSON.stringify({
+              subscriberId: id,
+              amount,
+              notes: `تمديد ${days} يوم`,
+            }),
+          });
+        }
 
         await logActivity('extend', 'subscriber', sub.name, `تمديد ${days} يوم - مبلغ ${amount} شيكل`);
         await refreshData();
@@ -478,38 +516,47 @@ export const useNetworkData = () => {
     }
 
     // Update subscriber (localStorage mode)
-    const updated = subscribers.map(s => {
-      if (s.id === id) {
-        return {
-          ...s,
-          expireDate: newExpireDate,
-          status: getSubscriberStatus(newExpireDate, 0) as SubscriberStatus,
-          daysLeft: getDaysLeft(newExpireDate),
-          balance: 0
-        };
-      }
-      return s;
+    setSubscribers(prevSubs => {
+      const updated = prevSubs.map(s => {
+        if (s.id === id) {
+          return {
+            ...s,
+            expireDate: newExpireDate,
+            status: getSubscriberStatus(newExpireDate, 0) as SubscriberStatus,
+            daysLeft: getDaysLeft(newExpireDate),
+            balance: 0
+          };
+        }
+        return s;
+      });
+      localStorage.setItem('subs', JSON.stringify(updated));
+      console.log('Updated subscribers saved to localStorage');
+      return updated;
     });
-    setSubscribers(updated);
-    localStorage.setItem('subs', JSON.stringify(updated));
 
-    // Add payment record
-    const newPayment: Payment = {
-      id: generateId(),
-      subscriberId: id,
-      subscriberName: sub.name,
-      amount,
-      date: new Date().toISOString().split('T')[0],
-      staffName: currentUser?.name || 'غير معروف',
-      type: 'extension',
-      notes: `تمديد ${days} يوم`
-    };
-    const updatedPayments = [...payments, newPayment];
-    setPayments(updatedPayments);
-    localStorage.setItem('payments', JSON.stringify(updatedPayments));
+    // Add payment record if amount > 0
+    if (amount > 0) {
+      const newPayment: Payment = {
+        id: generateId(),
+        subscriberId: id,
+        subscriberName: sub.name,
+        amount,
+        date: new Date().toISOString().split('T')[0],
+        staffName: currentUser?.name || 'غير معروف',
+        type: 'extension',
+        notes: `تمديد ${days} يوم`
+      };
+      
+      setPayments(prevPayments => {
+        const updatedPayments = [...prevPayments, newPayment];
+        localStorage.setItem('payments', JSON.stringify(updatedPayments));
+        console.log('Payment saved:', newPayment);
+        return updatedPayments;
+      });
+    }
 
     logActivity('extend', 'subscriber', sub.name, `تمديد ${days} يوم - مبلغ ${amount} شيكل`);
-  }, [subscribers, payments, currentUser, logActivity, isServerMode, apiFetch, refreshData]);
+  }, [currentUser, logActivity, isServerMode, apiFetch, refreshData]);
 
   // Add payment
   const addPayment = useCallback(async (payment: Omit<Payment, 'id' | 'date' | 'staffName'>) => {
